@@ -24,12 +24,26 @@ struct SExp {
 SExp nil = {{NULL}, TYPE_NIL};
 char buf[BUFLEN];
 
+/* Free memory held by this S-expression object */
 void cleanup(SExp *sex);
+
+/* Return a new Atom */
 SExp *mkatom(char *str);
+
+/* Return a new Pair. */
 SExp *mkpair(SExp *car, SExp *cdr);
+
+/* Return an s-expression representing the parameter as a quoted expression */
+SExp *mkquote(SExp *sex);
+
+/* Parse input stream into an S-expression. */
 SExp *parse(FILE *f);
-SExp *parselist(FILE *f);
+SExp *listparse(FILE *f);
+
+/* Print S-expression. */
 void print(SExp *sex);
+
+/* Return the next lexeme category from standard input. */
 int readToken(FILE *f);
 
 int main(void) {
@@ -59,7 +73,7 @@ SExp *mkatom(char *str) {
         sex = malloc(sizeof(struct SExp));
         if (sex == NULL)
                 return NULL;
-        sex->atom = strdup(buf);
+        sex->atom = strdup(str);
         sex->type = TYPE_ATOM;
         return sex;
 }
@@ -76,31 +90,57 @@ SExp *mkpair(SExp *car, SExp *cdr) {
         return sex;
 }
 
+SExp *mkquote(SExp *sex) {
+        SExp *car, *cdr;
+        car = mkatom("quote");
+        if (car == NULL)
+                return NULL;
+        cdr = cons(sex, &nil);
+        if (cdr == NULL) {
+                cleanup(car);
+                return NULL;
+        }
+        return cons(car, cdr);
+}
+
 SExp *parse(FILE *f) {
         int category;
+        SExp *sex;
 
         category = readToken(f);
-        if (category == ATOM)
+        if (category == ATOM) {
                 return mkatom(buf);
-        else if (category == LPAREN)
-                return parselist(f);
+        } else if (category == LPAREN) {
+                return listparse(f);
+        } else if (category == QUOTE) {
+                sex = parse(f);
+                if (sex == NULL)
+                        return NULL;
+                return mkquote(sex);
+        }
         return &nil;
 }
 
-SExp *parselist(FILE *f) {
+SExp *listparse(FILE *f) {
         SExp *car, *cdr;
         int category;
 
         category = readToken(f);
-        if (category == ATOM)
+        if (category == ATOM) {
                 car = mkatom(buf);
-        else if (category == LPAREN)
-                car = parselist(f);
-        else if (category == RPAREN)
+        } else if (category == LPAREN) {
+                car = listparse(f);
+        } else if (category == QUOTE) {
+                car = parse(f);
+                if (car == NULL)
+                        return NULL;
+                car = mkquote(car);
+        } else if (category == RPAREN) {
                 return &nil;
+        }
         if (car == NULL)
                 return NULL;
-        cdr = parselist(f);
+        cdr = listparse(f);
         if (cdr == NULL) {
                 cleanup(car);
                 return NULL;
@@ -122,7 +162,6 @@ void print(SExp *sex) {
         }
 }
 
-/* Return the next lexeme category from standard input. */
 int readToken(FILE *f) {
         char c;
         int i;
