@@ -134,8 +134,7 @@ SExpr *parse(FILE *f) {
                 depth++;
                 return parseList(f);
         } else if (category == RPAREN) {
-                depth--;
-                if (depth >= 0)
+                if (--depth >= 0)
                         return &nil;
         } else if (category == QUOTE) {
                 return cons(mkatom("quote"), cons(parse(f), &nil));
