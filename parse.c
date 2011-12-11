@@ -5,6 +5,8 @@
 
 #define BUFLEN 1024
 #define isreserved(c) (c == ')' || c == '(' || c == '\'')
+#define car(p) (p->pair[0])
+#define cdr(p) (p->pair[1])
 
 char buf[BUFLEN];
 
@@ -24,14 +26,6 @@ int readToken(void);
 void print(SExp *sex);
 
 SExp nil = {{NULL}, TYPE_NIL};
-
-SExp *car(SExp *sex) {
-        return sex->pair[0];
-}
-
-SExp *cdr(SExp *sex) {
-        return sex->pair[1];
-}
 
 int nesting = 0;
 
@@ -60,8 +54,8 @@ SExp *parse() {
         pair = malloc(sizeof(struct SExp));
         if (pair == NULL)
                 return NULL;
-        pair->pair[0] = atom;
-        pair->pair[1] = parse();
+        car(pair) = atom;
+        cdr(pair) = parse();
         pair->type = TYPE_PAIR;
         return pair;
 }
@@ -73,9 +67,9 @@ void print(SExp *sex) {
                 printf("()");
         } else {
                 printf("(");
-                print(sex->pair[0]);
+                print(car(sex));
                 printf(".");
-                print(sex->pair[1]);
+                print(cdr(sex));
                 printf(")");
         }
 }
@@ -84,8 +78,8 @@ void cleanup(SExp *sex) {
         if (sex->type == TYPE_ATOM) {
                 free(sex->atom);
         } else if (sex->type == TYPE_PAIR) {
-                cleanup(sex->pair[0]);
-                cleanup(sex->pair[1]);
+                cleanup(car(sex));
+                cleanup(cdr(sex));
         }
         if (sex != &nil)
                 free(sex);
