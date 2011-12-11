@@ -225,21 +225,19 @@ int readToken(FILE *f) {
                         return RPAREN;
                 if (c == '\'')
                         return QUOTE;
-                else {
-                        ungetc(c, f);
-                        for (i = 0; i < BUFLEN-1; i++) {
-                                c = getc(f);
-                                if (c == EOF)
-                                        return END;
-                                if (isreserved(c) || isspace(c))
-                                        break;
-                                buf[i] = c;
-                        }
-                        buf[i] = '\0';
-                        if (isreserved(c))
-                                ungetc(c, f);
-                        return ATOM;
-                }
+                break;
         }
-        return ERR;
+        ungetc(c, f);
+        for (i = 0; i < BUFLEN-1; i++) {
+                c = getc(f);
+                if (c == EOF)
+                        return END;
+                if (isreserved(c) || isspace(c))
+                        break;
+                buf[i] = c;
+        }
+        buf[i] = '\0';
+        if (isreserved(c))
+                ungetc(c, f);
+        return ATOM;
 }
