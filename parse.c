@@ -7,6 +7,7 @@
 #define isreserved(c) (c == ')' || c == '(' || c == '\'')
 #define car(p) (p->pair[0])
 #define cdr(p) (p->pair[1])
+#define cons(l,r) (mkpair(l,r))
 
 enum {QUOTE, LPAREN, RPAREN, ATOM, END, ERR};
 enum {TYPE_ATOM, TYPE_PAIR, TYPE_NIL};
@@ -21,44 +22,69 @@ struct SExp {
 };
 
 SExp nil = {{NULL}, TYPE_NIL};
+char buf[BUFLEN];
 
 int readToken(FILE *f);
 SExp *parse(FILE *f);
+SExp *parselist(FILE *f);
 void print(SExp *sex);
 void cleanup(SExp *sex);
-
-int nesting = 0;
-char buf[BUFLEN];
+SExp *mkatom(char *str);
+SExp *mkpair(SExp *car, SExp *cdr);
 
 SExp *parse(FILE *f) {
-        SExp *car, *pair;
         int category;
 
         category = readToken(f);
-        if (category == ATOM) {
-                car = malloc(sizeof(struct SExp));
-                if (car == NULL)
-                        return NULL;
-                car->atom = strdup(buf);
-                car->type = TYPE_ATOM;
-                if (!nesting)
-                        return car;
-        } else if (category == LPAREN) {
-                nesting++;
-                if (nesting == 1)
-                        return parse(f);
-                car = parse(f);
-        } else if (category == RPAREN) {
-                nesting--;
+        if (category == ATOM)
+                return mkatom(buf);
+        else if (category == LPAREN)
+                return parselist(f);
+        return &nil;
+}
+
+SExp *parselist(FILE *f) {
+        SExp *car, *cdr;
+        int category;
+
+        category = readToken(f);
+        if (category == ATOM)
+                car = mkatom(buf);
+        else if (category == LPAREN)
+                car = parselist(f);
+        else if (category == RPAREN)
                 return &nil;
-        }
-        pair = malloc(sizeof(struct SExp));
-        if (pair == NULL)
+        if (car == NULL)
                 return NULL;
-        car(pair) = car;
-        cdr(pair) = parse(f);
-        pair->type = TYPE_PAIR;
-        return pair;
+        cdr = parselist(f);
+        if (cdr == NULL) {
+                cleanup(car);
+                return NULL;
+        }
+        return cons(car, cdr);
+}
+
+SExp *mkatom(char *str) {
+        SExp *sex;
+
+        sex = malloc(sizeof(struct SExp));
+        if (sex == NULL)
+                return NULL;
+        sex->atom = strdup(buf);
+        sex->type = TYPE_ATOM;
+        return sex;
+}
+
+SExp *mkpair(SExp *car, SExp *cdr) {
+        SExp *sex;
+
+        sex = malloc(sizeof(struct SExp));
+        if (sex == NULL)
+                return NULL;
+        car(sex) = car;
+        cdr(sex) = cdr;
+        sex->type = TYPE_PAIR;
+        return sex;
 }
 
 void print(SExp *sex) {
