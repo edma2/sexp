@@ -64,6 +64,7 @@ int main(void) {
                         break;
                 print(exp);
                 printf("\n");
+                printf("%d\n", add(exp));
                 cleanup(exp);
         }
         return 0;
