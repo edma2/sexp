@@ -109,8 +109,11 @@ SExpr *mkpair(SExpr *car, SExpr *cdr) {
                 return NULL;
         }
         exp = malloc(sizeof(struct SExpr));
-        if (exp == NULL)
+        if (exp == NULL) {
+                cleanup(car);
+                cleanup(cdr);
                 return NULL;
+        }
         car->refCount++;
         cdr->refCount++;
         car(exp) = car;
