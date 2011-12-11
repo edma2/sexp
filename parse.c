@@ -38,8 +38,8 @@ void cleanup(SExpr *exp);
 SExpr *mkatom(char *str);
 
 /* Return a new Pair and increment reference counters for car and cdr. Returns
- * NULL if car or cdr is NULL, or memory allocation fails, freeing memory
- * associated with car and cdr if necessary. */
+ * NULL if car or cdr is NULL, or memory allocation fails. Frees memory
+ * associated with car and cdr upon such errors. */
 SExpr *mkpair(SExpr *car, SExpr *cdr);
 
 /* Parse input stream into an SExpr representing the S-expression. Returns NULL
