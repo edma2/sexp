@@ -39,7 +39,8 @@ SExpr *mkatom(char *str);
  * not NULL, then return NULL. If memory allocation fails, return NULL. */
 SExpr *mkpair(SExpr *car, SExpr *cdr);
 
-/* Parse input stream into an SExpr representing the S-expression. */
+/* Parse input stream into an SExpr representing the S-expression. Returns NULL
+ * on error or EOF. */
 SExpr *parse(FILE *f);
 SExpr *parseList(FILE *f);
 
