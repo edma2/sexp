@@ -31,10 +31,12 @@ char buf[BUFLEN];
  * call cleanup on them. */
 void cleanup(SExpr *exp);
 
-/* Return a new Atom */
+/* Return a new Atom. If memory allocation fails, return NULL. */
 SExpr *mkatom(char *str);
 
-/* Return a new Pair and increment reference counters for car and cdr. */
+/* Return a new Pair and increment reference counters for car and cdr. If car
+ * or cdr is NULL, call cleanup on car if car is not NULL, and cdr if cdr is
+ * not NULL, then return NULL. If memory allocation fails, return NULL. */
 SExpr *mkpair(SExpr *car, SExpr *cdr);
 
 /* Parse input stream into an SExpr representing the S-expression. */
@@ -44,7 +46,7 @@ SExpr *parseList(FILE *f);
 /* Print exp as an S-expression. */
 void print(SExpr *exp);
 
-/* Return the next lexeme category from standard input. */
+/* Return the next lexeme category from file stream. */
 int readToken(FILE *f);
 
 int main(void) {
