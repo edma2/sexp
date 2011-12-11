@@ -26,7 +26,7 @@ SExpr nil = {{NULL}, TYPE_NIL, 1};
 int depth;
 char buf[BUFLEN];
 
-/* Free memory held by exp if it's reference count is zero. If exp is a Pair,
+/* Free memory held by exp if its reference count is zero. If exp is a Pair,
  * decrement reference counters for its car and cdr children and recursively
  * call cleanup on them. */
 void cleanup(SExpr *exp);
