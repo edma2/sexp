@@ -22,6 +22,7 @@ struct SExp {
 };
 
 SExp nil = {{NULL}, TYPE_NIL};
+int depth;
 char buf[BUFLEN];
 
 /* Free memory held by this S-expression object */
@@ -33,12 +34,9 @@ SExp *mkatom(char *str);
 /* Return a new Pair. */
 SExp *mkpair(SExp *car, SExp *cdr);
 
-/* Return an s-expression representing the parameter as a quoted expression */
-SExp *mkquote(SExp *sex);
-
 /* Parse input stream into an S-expression. */
 SExp *parse(FILE *f);
-SExp *listparse(FILE *f);
+SExp *parseList(FILE *f);
 
 /* Print S-expression. */
 void print(SExp *sex);
@@ -49,10 +47,14 @@ int readToken(FILE *f);
 int main(void) {
         SExp *sex;
 
-        sex = parse(stdin);
-        print(sex);
-        printf("\n");
-        cleanup(sex);
+        while (1) {
+                sex = parse(stdin);
+                if (sex == NULL)
+                        break;
+                print(sex);
+                printf("\n");
+                cleanup(sex);
+        }
         return 0;
 }
 
@@ -70,6 +72,8 @@ void cleanup(SExp *sex) {
 SExp *mkatom(char *str) {
         SExp *sex;
 
+        if (str == NULL)
+                return NULL;
         sex = malloc(sizeof(struct SExp));
         if (sex == NULL)
                 return NULL;
@@ -81,6 +85,13 @@ SExp *mkatom(char *str) {
 SExp *mkpair(SExp *car, SExp *cdr) {
         SExp *sex;
 
+        if (car == NULL || cdr == NULL) {
+                if (car != NULL)
+                        cleanup(car);
+                if (cdr != NULL)
+                        cleanup(cdr);
+                return NULL;
+        }
         sex = malloc(sizeof(struct SExp));
         if (sex == NULL)
                 return NULL;
@@ -90,62 +101,31 @@ SExp *mkpair(SExp *car, SExp *cdr) {
         return sex;
 }
 
-SExp *mkquote(SExp *sex) {
-        SExp *car, *cdr;
-        car = mkatom("quote");
-        if (car == NULL)
-                return NULL;
-        cdr = cons(sex, &nil);
-        if (cdr == NULL) {
-                cleanup(car);
-                return NULL;
-        }
-        return cons(car, cdr);
-}
-
 SExp *parse(FILE *f) {
         int category;
-        SExp *sex;
 
         category = readToken(f);
         if (category == ATOM) {
                 return mkatom(buf);
         } else if (category == LPAREN) {
-                return listparse(f);
-        } else if (category == QUOTE) {
-                sex = parse(f);
-                if (sex == NULL)
+                depth++;
+                return parseList(f);
+        } else if (category == RPAREN) {
+                depth--;
+                if (depth < 0)
                         return NULL;
-                return mkquote(sex);
+                return &nil;
+        } else if (category == QUOTE) {
+                return cons(mkatom("quote"), cons(parse(f), &nil));
         }
-        return &nil;
+        return NULL;
 }
 
-SExp *listparse(FILE *f) {
-        SExp *car, *cdr;
-        int category;
+SExp *parseList(FILE *f) {
+        SExp *sex;
 
-        category = readToken(f);
-        if (category == ATOM) {
-                car = mkatom(buf);
-        } else if (category == LPAREN) {
-                car = listparse(f);
-        } else if (category == QUOTE) {
-                car = parse(f);
-                if (car == NULL)
-                        return NULL;
-                car = mkquote(car);
-        } else if (category == RPAREN) {
-                return &nil;
-        }
-        if (car == NULL)
-                return NULL;
-        cdr = listparse(f);
-        if (cdr == NULL) {
-                cleanup(car);
-                return NULL;
-        }
-        return cons(car, cdr);
+        sex = parse(f);
+        return sex == &nil ? sex : cons(sex, parseList(f));
 }
 
 void print(SExp *sex) {
