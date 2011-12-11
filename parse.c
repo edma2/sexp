@@ -19,26 +19,29 @@ struct SExpr {
                 SExpr *pair[2];
         };
         int type;
+        int refCount;
 };
 
-SExpr nil = {{NULL}, TYPE_NIL};
+SExpr nil = {{NULL}, TYPE_NIL, 1};
 int depth;
 char buf[BUFLEN];
 
-/* Free memory held by this S-expression object */
+/* Free memory held by exp if it's reference count is zero. If exp is a Pair,
+ * decrement reference counters for its car and cdr children and recursively
+ * call cleanup on them. */
 void cleanup(SExpr *exp);
 
 /* Return a new Atom */
 SExpr *mkatom(char *str);
 
-/* Return a new Pair. */
+/* Return a new Pair and increment reference counters for car and cdr. */
 SExpr *mkpair(SExpr *car, SExpr *cdr);
 
-/* Parse input stream into an S-expression. */
+/* Parse input stream into an SExpr representing the S-expression. */
 SExpr *parse(FILE *f);
 SExpr *parseList(FILE *f);
 
-/* Print S-expression. */
+/* Print exp as an S-expression. */
 void print(SExpr *exp);
 
 /* Return the next lexeme category from standard input. */
@@ -59,9 +62,13 @@ int main(void) {
 }
 
 void cleanup(SExpr *exp) {
+        if (exp->refCount > 0)
+                return;
         if (exp->type == TYPE_ATOM) {
                 free(exp->atom);
         } else if (exp->type == TYPE_PAIR) {
+                car(exp)->refCount--;
+                cdr(exp)->refCount--;
                 cleanup(car(exp));
                 cleanup(cdr(exp));
         }
@@ -79,6 +86,7 @@ SExpr *mkatom(char *str) {
                 return NULL;
         exp->atom = strdup(str);
         exp->type = TYPE_ATOM;
+        exp->refCount = 0;
         return exp;
 }
 
@@ -96,8 +104,11 @@ SExpr *mkpair(SExpr *car, SExpr *cdr) {
         if (exp == NULL)
                 return NULL;
         car(exp) = car;
+        car->refCount++;
         cdr(exp) = cdr;
+        cdr->refCount++;
         exp->type = TYPE_PAIR;
+        exp->refCount = 0;
         return exp;
 }
 
