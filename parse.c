@@ -46,35 +46,24 @@ SExp *parse() {
                         return NULL;
                 atom->atom = strdup(buf);
                 atom->type = TYPE_ATOM;
-                if (!nesting) {
+                if (!nesting)
                         return atom;
-                } else {
-                        pair = malloc(sizeof(struct SExp));
-                        if (pair == NULL)
-                                return NULL;
-                        pair->pair[0] = atom;
-                        pair->pair[1] = parse();
-                        pair->type = TYPE_PAIR;
-                        return pair;
-                }
         } else if (category == LPAREN) {
                 nesting++;
-                if (nesting == 1) {
+                if (nesting == 1)
                         return parse();
-                } else {
-                        pair = malloc(sizeof(struct SExp));
-                        if (pair == NULL)
-                                return NULL;
-                        pair->pair[0] = parse();
-                        pair->pair[1] = parse();
-                        pair->type = TYPE_PAIR;
-                        return pair;
-                }
+                atom = parse();
         } else if (category == RPAREN) {
                 nesting--;
                 return &nil;
         }
-        return NULL;
+        pair = malloc(sizeof(struct SExp));
+        if (pair == NULL)
+                return NULL;
+        pair->pair[0] = atom;
+        pair->pair[1] = parse();
+        pair->type = TYPE_PAIR;
+        return pair;
 }
 
 void print(SExp *sex) {
