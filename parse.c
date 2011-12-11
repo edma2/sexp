@@ -64,7 +64,7 @@ int main(void) {
 }
 
 void cleanup(SExpr *exp) {
-        if (exp->refCount > 0)
+        if (exp == &nil || exp->refCount > 0)
                 return;
         if (exp->type == TYPE_ATOM) {
                 free(exp->atom);
@@ -74,8 +74,7 @@ void cleanup(SExpr *exp) {
                 cleanup(car(exp));
                 cleanup(cdr(exp));
         }
-        if (exp != &nil)
-                free(exp);
+        free(exp);
 }
 
 SExpr *mkatom(char *str) {
@@ -105,10 +104,10 @@ SExpr *mkpair(SExpr *car, SExpr *cdr) {
         exp = malloc(sizeof(struct SExpr));
         if (exp == NULL)
                 return NULL;
-        car(exp) = car;
         car->refCount++;
-        cdr(exp) = cdr;
         cdr->refCount++;
+        car(exp) = car;
+        cdr(exp) = cdr;
         exp->type = TYPE_PAIR;
         exp->refCount = 0;
         return exp;
