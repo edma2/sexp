@@ -30,23 +30,23 @@ SExp nil = {{NULL}, TYPE_NIL};
 int nesting = 0;
 
 SExp *parse() {
-        SExp *atom, *pair;
+        SExp *car, *pair;
         int category;
 
         category = readToken();
         if (category == ATOM) {
-                atom = malloc(sizeof(struct SExp));
-                if (atom == NULL)
+                car = malloc(sizeof(struct SExp));
+                if (car == NULL)
                         return NULL;
-                atom->atom = strdup(buf);
-                atom->type = TYPE_ATOM;
+                car->atom = strdup(buf);
+                car->type = TYPE_ATOM;
                 if (!nesting)
-                        return atom;
+                        return car;
         } else if (category == LPAREN) {
                 nesting++;
                 if (nesting == 1)
                         return parse();
-                atom = parse();
+                car = parse();
         } else if (category == RPAREN) {
                 nesting--;
                 return &nil;
@@ -54,7 +54,7 @@ SExp *parse() {
         pair = malloc(sizeof(struct SExp));
         if (pair == NULL)
                 return NULL;
-        car(pair) = atom;
+        car(pair) = car;
         cdr(pair) = parse();
         pair->type = TYPE_PAIR;
         return pair;
