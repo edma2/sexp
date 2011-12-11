@@ -52,24 +52,62 @@ void print(SExpr *exp);
 
 /* Return the next lexeme category from file stream. */
 int readToken(FILE *f);
+SExpr *eval(SExpr *exp);
+SExpr *map(SExpr *exp, SExpr *(*f)(SExpr *));
+SExpr *operator(SExpr *exp);
+SExpr *operands(SExpr *exp);
 
+/* (+ E0, ... ) */
 int add(SExpr *exp) {
         if (exp == &nil)
                 return 0;
         return atoi(car(exp)->atom) + add(cdr(exp));
 }
 
+SExpr *list_of_values(SExpr *exps) {
+        if (exps == &nil)
+                return exps;
+        return cons(eval(car(exps)), list_of_values(cdr(exps)));
+}
+
+SExpr *eval(SExpr *exp) {
+        SExpr *list;
+
+        if (exp->type == TYPE_ATOM)
+                return exp;
+        if (operator(exp)->atom[0] == '+') {
+                list = list_of_values(operands(exp));
+                snprintf(buf, BUFLEN, "%d", add(list));
+                cleanup(list);
+                return mkatom(buf);
+        }
+        return exp;
+}
+
+SExpr *operator(SExpr *exp) {
+        return car(exp);
+}
+
+SExpr *operands(SExpr *exp) {
+        return cdr(exp);
+}
+
 int main(void) {
-        SExpr *exp;
+        SExpr *exp, *result;
 
         while (1) {
                 exp = parse(stdin);
                 if (exp == NULL)
                         break;
-                print(exp);
+                result = eval(exp);
+                print(result);
                 printf("\n");
-                printf("%d\n", add(exp));
+                if (exp->type == TYPE_ATOM) {
+                        cleanup(exp);
+                        continue;
+                }
                 cleanup(exp);
+                cleanup(result);
         }
         return 0;
 }
