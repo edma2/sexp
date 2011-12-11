@@ -80,9 +80,24 @@ void print(SExp *sex) {
         }
 }
 
+void cleanup(SExp *sex) {
+        if (sex->type == TYPE_ATOM) {
+                free(sex->atom);
+        } else if (sex->type == TYPE_PAIR) {
+                cleanup(sex->pair[0]);
+                cleanup(sex->pair[1]);
+        }
+        if (sex != &nil)
+                free(sex);
+}
+
 int main(void) {
-        print(parse());
+        SExp *sex;
+
+        sex = parse();
+        print(sex);
         printf("\n");
+        cleanup(sex);
         return 0;
 }
 
