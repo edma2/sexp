@@ -102,12 +102,9 @@ int main(void) {
                 result = eval(exp);
                 print(result);
                 printf("\n");
-                if (exp->type == TYPE_ATOM) {
-                        cleanup(exp);
-                        continue;
-                }
                 cleanup(exp);
-                cleanup(result);
+                if (exp != result)
+                        cleanup(result);
         }
         return 0;
 }
