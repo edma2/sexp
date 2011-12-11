@@ -12,78 +12,78 @@
 enum {QUOTE, LPAREN, RPAREN, ATOM, END, ERR};
 enum {TYPE_ATOM, TYPE_PAIR, TYPE_NIL};
 
-typedef struct SExp SExp;
-struct SExp {
+typedef struct SExpr SExpr;
+struct SExpr {
         union {
                 char *atom;
-                SExp *pair[2];
+                SExpr *pair[2];
         };
         int type;
 };
 
-SExp nil = {{NULL}, TYPE_NIL};
+SExpr nil = {{NULL}, TYPE_NIL};
 int depth;
 char buf[BUFLEN];
 
 /* Free memory held by this S-expression object */
-void cleanup(SExp *sex);
+void cleanup(SExpr *exp);
 
 /* Return a new Atom */
-SExp *mkatom(char *str);
+SExpr *mkatom(char *str);
 
 /* Return a new Pair. */
-SExp *mkpair(SExp *car, SExp *cdr);
+SExpr *mkpair(SExpr *car, SExpr *cdr);
 
 /* Parse input stream into an S-expression. */
-SExp *parse(FILE *f);
-SExp *parseList(FILE *f);
+SExpr *parse(FILE *f);
+SExpr *parseList(FILE *f);
 
 /* Print S-expression. */
-void print(SExp *sex);
+void print(SExpr *exp);
 
 /* Return the next lexeme category from standard input. */
 int readToken(FILE *f);
 
 int main(void) {
-        SExp *sex;
+        SExpr *exp;
 
         while (1) {
-                sex = parse(stdin);
-                if (sex == NULL)
+                exp = parse(stdin);
+                if (exp == NULL)
                         break;
-                print(sex);
+                print(exp);
                 printf("\n");
-                cleanup(sex);
+                cleanup(exp);
         }
         return 0;
 }
 
-void cleanup(SExp *sex) {
-        if (sex->type == TYPE_ATOM) {
-                free(sex->atom);
-        } else if (sex->type == TYPE_PAIR) {
-                cleanup(car(sex));
-                cleanup(cdr(sex));
+void cleanup(SExpr *exp) {
+        if (exp->type == TYPE_ATOM) {
+                free(exp->atom);
+        } else if (exp->type == TYPE_PAIR) {
+                cleanup(car(exp));
+                cleanup(cdr(exp));
         }
-        if (sex != &nil)
-                free(sex);
+        if (exp != &nil)
+                free(exp);
 }
 
-SExp *mkatom(char *str) {
-        SExp *sex;
+SExpr *mkatom(char *str) {
+        SExpr *exp;
 
         if (str == NULL)
                 return NULL;
-        sex = malloc(sizeof(struct SExp));
-        if (sex == NULL)
+        exp = malloc(sizeof(struct SExpr));
+        if (exp == NULL)
                 return NULL;
-        sex->atom = strdup(str);
-        sex->type = TYPE_ATOM;
-        return sex;
+        exp->atom = strdup(str);
+        exp->type = TYPE_ATOM;
+        return exp;
 }
 
-SExp *mkpair(SExp *car, SExp *cdr) {
-        SExp *sex;
+SExpr *mkpair(SExpr *car, SExpr *cdr) {
+        SExpr *exp;
 
         if (car == NULL || cdr == NULL) {
                 if (car != NULL)
@@ -92,16 +92,16 @@ SExp *mkpair(SExp *car, SExp *cdr) {
                         cleanup(cdr);
                 return NULL;
         }
-        sex = malloc(sizeof(struct SExp));
-        if (sex == NULL)
+        exp = malloc(sizeof(struct SExpr));
+        if (exp == NULL)
                 return NULL;
-        car(sex) = car;
-        cdr(sex) = cdr;
-        sex->type = TYPE_PAIR;
-        return sex;
+        car(exp) = car;
+        cdr(exp) = cdr;
+        exp->type = TYPE_PAIR;
+        return exp;
 }
 
-SExp *parse(FILE *f) {
+SExpr *parse(FILE *f) {
         int category;
 
         category = readToken(f);
@@ -121,23 +121,23 @@ SExp *parse(FILE *f) {
         return NULL;
 }
 
-SExp *parseList(FILE *f) {
-        SExp *sex;
+SExpr *parseList(FILE *f) {
+        SExpr *exp;
 
-        sex = parse(f);
-        return sex == &nil ? sex : cons(sex, parseList(f));
+        exp = parse(f);
+        return exp == &nil ? exp : cons(exp, parseList(f));
 }
 
-void print(SExp *sex) {
-        if (sex->type == TYPE_ATOM) {
-                printf("%s", sex->atom);
-        } else if (sex->type == TYPE_NIL) {
+void print(SExpr *exp) {
+        if (exp->type == TYPE_ATOM) {
+                printf("%s", exp->atom);
+        } else if (exp->type == TYPE_NIL) {
                 printf("()");
         } else {
                 printf("(");
-                print(car(sex));
+                print(car(exp));
                 printf(".");
-                print(cdr(sex));
+                print(cdr(exp));
                 printf(")");
         }
 }
