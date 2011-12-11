@@ -22,8 +22,11 @@ struct SExpr {
         int refCount;
 };
 
+/* The SExpr representing nil, or the empty list. */
 SExpr nil = {{NULL}, TYPE_NIL, 1};
+/* Used to check matching parentheses */
 int depth;
+/* Lexer stores bytes here. */
 char buf[BUFLEN];
 
 /* Free memory held by exp if its reference count is zero. If exp is a Pair,
