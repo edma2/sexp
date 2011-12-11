@@ -75,8 +75,12 @@ SExpr *eval(SExpr *exp) {
 
         if (exp->type == TYPE_ATOM)
                 return exp;
+        if (exp->type == TYPE_NIL)
+                return exp;
         if (operator(exp)->atom[0] == '+') {
                 list = list_of_values(operands(exp));
+                if (list == NULL)
+                        return NULL;
                 snprintf(buf, BUFLEN, "%d", add(list));
                 cleanup(list);
                 return mkatom(buf);
@@ -100,6 +104,10 @@ int main(void) {
                 if (exp == NULL)
                         break;
                 result = eval(exp);
+                if (result == NULL) {
+                        cleanup(exp);
+                        break;
+                }
                 print(result);
                 printf("\n");
                 cleanup(exp);
