@@ -8,8 +8,6 @@
 #define car(p) (p->pair[0])
 #define cdr(p) (p->pair[1])
 
-char buf[BUFLEN];
-
 enum {QUOTE, LPAREN, RPAREN, ATOM, END, ERR};
 enum {TYPE_ATOM, TYPE_PAIR, TYPE_NIL};
 
@@ -22,18 +20,21 @@ struct SExp {
         int type;
 };
 
-int readToken(void);
-void print(SExp *sex);
-
 SExp nil = {{NULL}, TYPE_NIL};
 
-int nesting = 0;
+int readToken(FILE *f);
+SExp *parse(FILE *f);
+void print(SExp *sex);
+void cleanup(SExp *sex);
 
-SExp *parse() {
+int nesting = 0;
+char buf[BUFLEN];
+
+SExp *parse(FILE *f) {
         SExp *car, *pair;
         int category;
 
-        category = readToken();
+        category = readToken(f);
         if (category == ATOM) {
                 car = malloc(sizeof(struct SExp));
                 if (car == NULL)
@@ -45,8 +46,8 @@ SExp *parse() {
         } else if (category == LPAREN) {
                 nesting++;
                 if (nesting == 1)
-                        return parse();
-                car = parse();
+                        return parse(f);
+                car = parse(f);
         } else if (category == RPAREN) {
                 nesting--;
                 return &nil;
@@ -55,7 +56,7 @@ SExp *parse() {
         if (pair == NULL)
                 return NULL;
         car(pair) = car;
-        cdr(pair) = parse();
+        cdr(pair) = parse(f);
         pair->type = TYPE_PAIR;
         return pair;
 }
@@ -88,20 +89,21 @@ void cleanup(SExp *sex) {
 int main(void) {
         SExp *sex;
 
-        sex = parse();
+        sex = parse(stdin);
         print(sex);
         printf("\n");
         cleanup(sex);
+
         return 0;
 }
 
 /* Return the next lexeme category from standard input. */
-int readToken(void) {
+int readToken(FILE *f) {
         char c;
         int i;
 
         while (1) {
-                c = getchar();
+                c = getc(f);
                 if (c == EOF)
                         return END;
                 if (isspace(c))
@@ -113,9 +115,9 @@ int readToken(void) {
                 if (c == '\'')
                         return QUOTE;
                 else {
-                        ungetc(c, stdin);
+                        ungetc(c, f);
                         for (i = 0; i < BUFLEN-1; i++) {
-                                c = getchar();
+                                c = getc(f);
                                 if (c == EOF)
                                         return END;
                                 if (isreserved(c) || isspace(c))
@@ -124,7 +126,7 @@ int readToken(void) {
                         }
                         buf[i] = '\0';
                         if (isreserved(c))
-                                ungetc(c, stdin);
+                                ungetc(c, f);
                         return ATOM;
                 }
         }
