@@ -49,6 +49,12 @@ void print(SExpr *exp);
 /* Return the next lexeme category from file stream. */
 int readToken(FILE *f);
 
+int add(SExpr *exp) {
+        if (exp == &nil)
+                return 0;
+        return atoi(car(exp)->atom) + add(cdr(exp));
+}
+
 int main(void) {
         SExpr *exp;
 
