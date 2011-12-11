@@ -24,13 +24,57 @@ struct SExp {
 SExp nil = {{NULL}, TYPE_NIL};
 char buf[BUFLEN];
 
-int readToken(FILE *f);
-SExp *parse(FILE *f);
-SExp *parselist(FILE *f);
-void print(SExp *sex);
 void cleanup(SExp *sex);
 SExp *mkatom(char *str);
 SExp *mkpair(SExp *car, SExp *cdr);
+SExp *parse(FILE *f);
+SExp *parselist(FILE *f);
+void print(SExp *sex);
+int readToken(FILE *f);
+
+int main(void) {
+        SExp *sex;
+
+        sex = parse(stdin);
+        print(sex);
+        printf("\n");
+        cleanup(sex);
+        return 0;
+}
+
+void cleanup(SExp *sex) {
+        if (sex->type == TYPE_ATOM) {
+                free(sex->atom);
+        } else if (sex->type == TYPE_PAIR) {
+                cleanup(car(sex));
+                cleanup(cdr(sex));
+        }
+        if (sex != &nil)
+                free(sex);
+}
+
+SExp *mkatom(char *str) {
+        SExp *sex;
+
+        sex = malloc(sizeof(struct SExp));
+        if (sex == NULL)
+                return NULL;
+        sex->atom = strdup(buf);
+        sex->type = TYPE_ATOM;
+        return sex;
+}
+
+SExp *mkpair(SExp *car, SExp *cdr) {
+        SExp *sex;
+
+        sex = malloc(sizeof(struct SExp));
+        if (sex == NULL)
+                return NULL;
+        car(sex) = car;
+        cdr(sex) = cdr;
+        sex->type = TYPE_PAIR;
+        return sex;
+}
 
 SExp *parse(FILE *f) {
         int category;
@@ -64,29 +108,6 @@ SExp *parselist(FILE *f) {
         return cons(car, cdr);
 }
 
-SExp *mkatom(char *str) {
-        SExp *sex;
-
-        sex = malloc(sizeof(struct SExp));
-        if (sex == NULL)
-                return NULL;
-        sex->atom = strdup(buf);
-        sex->type = TYPE_ATOM;
-        return sex;
-}
-
-SExp *mkpair(SExp *car, SExp *cdr) {
-        SExp *sex;
-
-        sex = malloc(sizeof(struct SExp));
-        if (sex == NULL)
-                return NULL;
-        car(sex) = car;
-        cdr(sex) = cdr;
-        sex->type = TYPE_PAIR;
-        return sex;
-}
-
 void print(SExp *sex) {
         if (sex->type == TYPE_ATOM) {
                 printf("%s", sex->atom);
@@ -99,28 +120,6 @@ void print(SExp *sex) {
                 print(cdr(sex));
                 printf(")");
         }
-}
-
-void cleanup(SExp *sex) {
-        if (sex->type == TYPE_ATOM) {
-                free(sex->atom);
-        } else if (sex->type == TYPE_PAIR) {
-                cleanup(car(sex));
-                cleanup(cdr(sex));
-        }
-        if (sex != &nil)
-                free(sex);
-}
-
-int main(void) {
-        SExp *sex;
-
-        sex = parse(stdin);
-        print(sex);
-        printf("\n");
-        cleanup(sex);
-
-        return 0;
 }
 
 /* Return the next lexeme category from standard input. */
