@@ -37,9 +37,9 @@ void cleanup(SExpr *exp);
 /* Return a new Atom. If memory allocation fails, return NULL. */
 SExpr *mkatom(char *str);
 
-/* Return a new Pair and increment reference counters for car and cdr. If car
- * or cdr is NULL, call cleanup on car if car is not NULL, and cdr if cdr is
- * not NULL, then return NULL. If memory allocation fails, return NULL. */
+/* Return a new Pair and increment reference counters for car and cdr. Returns
+ * NULL if car or cdr is NULL, or memory allocation fails, freeing memory
+ * associated with car and cdr if necessary. */
 SExpr *mkpair(SExpr *car, SExpr *cdr);
 
 /* Parse input stream into an SExpr representing the S-expression. Returns NULL
