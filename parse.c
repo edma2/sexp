@@ -64,10 +64,10 @@ int add(SExpr *exp) {
         return atoi(car(exp)->atom) + add(cdr(exp));
 }
 
-SExpr *list_of_values(SExpr *exps) {
+SExpr *evalList(SExpr *exps) {
         if (exps == &nil)
                 return exps;
-        return cons(eval(car(exps)), list_of_values(cdr(exps)));
+        return cons(eval(car(exps)), evalList(cdr(exps)));
 }
 
 SExpr *eval(SExpr *exp) {
@@ -78,7 +78,7 @@ SExpr *eval(SExpr *exp) {
         if (exp->type == TYPE_NIL)
                 return exp;
         if (operator(exp)->atom[0] == '+') {
-                list = list_of_values(operands(exp));
+                list = evalList(operands(exp));
                 if (list == NULL)
                         return NULL;
                 snprintf(buf, BUFLEN, "%d", add(list));
