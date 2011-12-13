@@ -4,7 +4,7 @@ int main(void) {
         SExpr *exp, *result;
 
         while (1) {
-                exp = parse(stdin);
+                exp = parse(stdin, 0);
                 if (exp == NULL)
                         break;
                 exp->refCount++;

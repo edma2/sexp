@@ -5,8 +5,6 @@ Frame global = {NULL, {0}};
 SExpr nil = {{NULL}, TYPE_NIL, 1};
 int pdepth;
 
-static SExpr *parselist(FILE *f);
-
 void freeframe(Frame *f) {
         int i;
         Entry *ep, *tmp;
@@ -113,7 +111,11 @@ int isquoted(SExpr *exp) {
 }
 
 int istaggedlist(SExpr *exp, char *tag) {
-        return exp->type == TYPE_PAIR && !strcmp(car(exp)->atom, tag);
+        if (exp->type != TYPE_PAIR)
+                return 0;
+        if (car(exp)->type != TYPE_ATOM)
+                return 0;
+        return !strcmp(car(exp)->atom, tag);
 }
 
 SExpr *eval(SExpr *exp, Frame *env) {
@@ -123,6 +125,7 @@ SExpr *eval(SExpr *exp, Frame *env) {
                 return lookup(exp, env);
         if (isdefine(exp))
                 return evaldefine(exp, env);
+        /*
         if (operator(exp)->atom[0] == '+') {
                 SExpr *list = evalmap(operands(exp), env);
                 if (list == NULL)
@@ -131,6 +134,7 @@ SExpr *eval(SExpr *exp, Frame *env) {
                 release(list);
                 return mkatom(buf);
         }
+        */
         return exp;
 }
 
@@ -197,22 +201,24 @@ SExpr *mkpair(SExpr *car, SExpr *cdr) {
         return exp;
 }
 
-SExpr *parse(FILE *f) {
+SExpr *parse(FILE *f, int depth) {
         int category;
+        SExpr *exp;
 
         category = nexttok(f);
-        if (category == ATOM) {
-                return mkatom(buf);
-        } else if (category == LPAREN) {
-                pdepth++;
-                return parselist(f);
-        } else if (category == RPAREN) {
-                if (--pdepth >= 0)
-                        return &nil;
-        } else if (category == QUOTE) {
-                return cons(mkatom("quote"), cons(parse(f), &nil));
-        }
-        return NULL;
+        if (category == ATOM)
+                exp = mkatom(buf);
+        else if (category == LPAREN)
+                exp = parse(f, depth + 1);
+        else if (category == RPAREN && depth >= 0)
+                return &nil;
+        else
+                return NULL;
+
+        if (depth)
+                exp = cons(exp, parse(f, depth));
+
+        return exp;
 }
 
 void print(SExpr *exp) {
@@ -221,15 +227,11 @@ void print(SExpr *exp) {
         } else if (exp->type == TYPE_NIL) {
                 printf("()");
         } else {
-                if (!strcmp(car(exp)->atom, "quote")) {
-                        print(cadr(exp));
-                } else {
-                        printf("(");
-                        print(car(exp));
-                        printf(".");
-                        print(cdr(exp));
-                        printf(")");
-                }
+                printf("(");
+                print(car(exp));
+                printf(".");
+                print(cdr(exp));
+                printf(")");
         }
 }
 
@@ -264,11 +266,4 @@ int nexttok(FILE *f) {
         if (isreserved(c))
                 ungetc(c, f);
         return ATOM;
-}
-
-static SExpr *parselist(FILE *f) {
-        SExpr *exp;
-
-        exp = parse(f);
-        return exp == &nil ? exp : cons(exp, parselist(f));
 }
