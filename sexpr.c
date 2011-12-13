@@ -110,6 +110,15 @@ int isquoted(SExpr *exp) {
         return istaggedlist(exp, "quote");
 }
 
+int islambda(SExpr *exp) {
+        return istaggedlist(exp, "lambda");
+}
+
+SExpr *evallambda(SExpr *exp, Frame *env) {
+        exp->frame = env;
+        return exp;
+}
+
 int istaggedlist(SExpr *exp, char *tag) {
         if (exp->type != TYPE_PAIR)
                 return 0;

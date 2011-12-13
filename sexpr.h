@@ -17,6 +17,12 @@
 enum {QUOTE, LPAREN, RPAREN, ATOM, END, ERR};
 enum {TYPE_ATOM, TYPE_PAIR, TYPE_NIL};
 
+typedef struct Frame Frame;
+struct Frame {
+        Frame *parent;
+        Entry *bindings[SIZE];
+};
+
 typedef struct SExpr SExpr;
 struct SExpr {
         union {
@@ -25,18 +31,8 @@ struct SExpr {
         };
         int type;
         int refCount;
+        Frame *frame;
 };
-
-typedef struct Frame Frame;
-struct Frame {
-        Frame *parent;
-        Entry *bindings[SIZE];
-};
-
-typedef struct {
-        SExpr *body;
-        Frame *env;
-} Proc;
 
 extern char buf[BUFLEN];        /* general purpose buffer */
 extern Frame global;            /* global frame */
@@ -91,6 +87,7 @@ Frame *extend(Frame *env);
 SExpr *define(SExpr *symbol, SExpr *exp, Frame *env);
 
 SExpr *evaldefine(SExpr *exp, Frame *env);
+SExpr *evallambda(SExpr *exp, Frame *env);
 
 /* Look up symbol in environment and return value, or NULL if not found. */
 SExpr *lookup(SExpr *symbol, Frame *env);
