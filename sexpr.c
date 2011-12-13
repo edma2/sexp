@@ -3,7 +3,6 @@
 char buf[BUFLEN];
 Frame global = {NULL, {0}};
 SExpr nil = {{NULL}, TYPE_NIL, 1};
-int pdepth;
 
 void freeframe(Frame *f) {
         int i;

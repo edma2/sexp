@@ -37,7 +37,6 @@ struct SExpr {
 extern char buf[BUFLEN];        /* general purpose buffer */
 extern Frame global;            /* global frame */
 extern SExpr nil;               /* empty list */
-extern int pdepth;              /* parse depth */
 
 void freeframe(Frame *f);
 
