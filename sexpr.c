@@ -34,7 +34,7 @@ Frame *extend(Frame *env) {
         return new;
 }
 
-SExpr *evaldefinition(SExpr *exp, Frame *env) {
+SExpr *evaldefine(SExpr *exp, Frame *env) {
         SExpr *value;
 
         value = eval(caddr(exp), env);
@@ -85,7 +85,7 @@ SExpr *evalmap(SExpr *exps, Frame *env) {
         return cons(eval(car(exps), env), evalmap(cdr(exps), env));
 }
 
-int isselfevaluating(SExpr *exp) {
+int isselfeval(SExpr *exp) {
         char *s;
 
         if (exp->type == TYPE_NIL)
@@ -101,7 +101,7 @@ int isselfevaluating(SExpr *exp) {
 }
 
 int issymbol(SExpr *exp) {
-        return exp->type == TYPE_ATOM && !isselfevaluating(exp);
+        return exp->type == TYPE_ATOM && !isselfeval(exp);
 }
 
 int isdefine(SExpr *exp) {
@@ -109,12 +109,12 @@ int isdefine(SExpr *exp) {
 }
 
 SExpr *eval(SExpr *exp, Frame *env) {
-        if (isselfevaluating(exp))
+        if (isselfeval(exp))
                 return exp;
         if (issymbol(exp))
                 return lookup(exp, env);
         if (isdefine(exp))
-                return evaldefinition(exp, env);
+                return evaldefine(exp, env);
         if (operator(exp)->atom[0] == '+') {
                 SExpr *list = evalmap(operands(exp), env);
                 if (list == NULL)
