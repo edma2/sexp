@@ -36,7 +36,8 @@ Frame *extend(Frame *env) {
 }
 
 SExpr *evaldefinition(SExpr *exp, Frame *env) {
-        define(cadr(exp), eval(caddr(exp), env), env);
+        if (define(cadr(exp), eval(caddr(exp), env), env) == NULL)
+                return NULL;
         return cons(mkatom("quote"), cons(mkatom("ok"), &nil));
 }
 
