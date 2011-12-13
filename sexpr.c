@@ -18,31 +18,31 @@ Frame *extend(Frame *env) {
         return new;
 }
 
-SExpr *define(Frame *env, char *symbol, SExpr *exp) {
+SExpr *define(SExpr *symbol, SExpr *exp, Frame *env) {
         Entry *e;
         SExpr *old;
 
-        e = find(env->bindings, symbol);
+        e = find(env->bindings, symbol->atom);
         if (e == NULL) {
-                e = insert(env->bindings, symbol, exp);
+                e = insert(env->bindings, symbol->atom, exp);
                 if (e == NULL)
                         return NULL;
-                return e->value;
+        } else {
+                old = e->value;
+                old->refCount--;
+                exp->refCount++;
+                release(e->value);
+                e->value = exp;
         }
-        old = e->value;
-        old->refCount--;
-        exp->refCount++;
-        release(e->value);
-        e->value = exp;
-        return exp;
+        return &nil;
 }
 
-SExpr *lookup(Frame *env, char *symbol) {
+SExpr *lookup(SExpr *symbol, Frame *env) {
         Frame *fp;
         Entry *e;
 
         for (fp = env; fp != NULL; fp = fp->parent) {
-                e = find(env->bindings, symbol);
+                e = find(env->bindings, symbol->atom);
                 if (e != NULL)
                         return e->value;
         }
@@ -55,21 +55,44 @@ int add(SExpr *exp) {
         return atoi(car(exp)->atom) + add(cdr(exp));
 }
 
-SExpr *evalmap(SExpr *exps) {
+SExpr *evalmap(SExpr *exps, Frame *env) {
         if (exps == &nil)
                 return exps;
-        return cons(eval(car(exps)), evalmap(cdr(exps)));
+        return cons(eval(car(exps), env), evalmap(cdr(exps), env));
 }
 
-SExpr *eval(SExpr *exp) {
-        SExpr *list;
+int isselfevaluating(SExpr *exp) {
+        char *s;
 
-        if (exp->type == TYPE_ATOM)
-                return exp;
         if (exp->type == TYPE_NIL)
+                return 1;
+        if (exp->type == TYPE_ATOM) {
+                for (s = exp->atom; *s != '\0'; s++) {
+                        if (!isdigit(*s))
+                                return 0;
+                }
+                return 1;
+        }
+        return 0;
+}
+
+int issymbol(SExpr *exp) {
+        return exp->type == TYPE_ATOM && !isselfevaluating(exp);
+}
+
+int isdefine(SExpr *exp) {
+        return exp->type == TYPE_PAIR && !strcmp(car(exp)->atom, "define");
+}
+
+SExpr *eval(SExpr *exp, Frame *env) {
+        if (isselfevaluating(exp))
                 return exp;
+        if (issymbol(exp))
+                return lookup(exp, env);
+        if (isdefine(exp))
+                return define(car(cdr(exp)), eval(car(cdr(cdr(exp))), env), env);
         if (operator(exp)->atom[0] == '+') {
-                list = evalmap(operands(exp));
+                SExpr *list = evalmap(operands(exp), env);
                 if (list == NULL)
                         return NULL;
                 snprintf(buf, BUFLEN, "%d", add(list));

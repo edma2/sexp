@@ -7,7 +7,7 @@ int main(void) {
                 exp = parse(stdin);
                 if (exp == NULL)
                         break;
-                result = eval(exp);
+                result = eval(exp, &global);
                 if (result == NULL) {
                         release(exp);
                         break;

@@ -59,11 +59,16 @@ void print(SExpr *exp);
 /* Lexer: reads the next token from input stream. */
 int nexttok(FILE *f);
 
+/* Return non-zero value if SExpr is a self evaluating entity. */
+int isselfevaluating(SExpr *exp);
+int isdefine(SExpr *exp);
+int issymbol(SExpr *exp);
+
 /* Evaluate SExpr and return result, or NULL on error. */
-SExpr *eval(SExpr *exp);
+SExpr *eval(SExpr *exp, Frame *env);
 
 /* Map eval to a list of SExprs. */
-SExpr *evalmap(SExpr *exps);
+SExpr *evalmap(SExpr *exps, Frame *env);
 
 /* Return operator of SExpr. */
 SExpr *operator(SExpr *exp);
@@ -78,7 +83,7 @@ int add(SExpr *exp);
 Frame *extend(Frame *env);
 
 /* Define new symbol in current frame and return value, or NULL on error. */
-SExpr *define(Frame *env, char *symbol, SExpr *exp);
+SExpr *define(SExpr *symbol, SExpr *exp, Frame *env);
 
 /* Look up symbol in environment and return value, or NULL if not found. */
-SExpr *lookup(Frame *env, char *symbol);
+SExpr *lookup(SExpr *symbol, Frame *env);
