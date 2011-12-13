@@ -28,7 +28,8 @@ Entry *insert(Entry *hashtab[], char *key, void *value) {
         e = malloc(sizeof(Entry));
         if (e == NULL)
                 return NULL;
-        e->key = strdup(key);
+        e->key = strndup(key, strlen(key));
+        //e->key = strdup(key); /* valgrind: Invalid read of size 4 */
         if (e->key == NULL) {
                 free(e);
                 return NULL;
