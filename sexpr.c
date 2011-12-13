@@ -211,11 +211,15 @@ void print(SExpr *exp) {
         } else if (exp->type == TYPE_NIL) {
                 printf("()");
         } else {
-                printf("(");
-                print(car(exp));
-                printf(".");
-                print(cdr(exp));
-                printf(")");
+                if (!strcmp(car(exp)->atom, "quote")) {
+                        print(cadr(exp));
+                } else {
+                        printf("(");
+                        print(car(exp));
+                        printf(".");
+                        print(cdr(exp));
+                        printf(")");
+                }
         }
 }
 
