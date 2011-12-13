@@ -43,6 +43,8 @@ extern Frame global;            /* global frame */
 extern SExpr nil;               /* empty list */
 extern int pdepth;              /* parse depth */
 
+void freeframe(Frame *f);
+
 /* If reference counter is 0, free resources associated with SExpr. Then, if
  * SExpr is a Pair, decrease reference counters for car and cdr. */
 void release(SExpr *exp);

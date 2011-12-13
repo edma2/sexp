@@ -18,5 +18,6 @@ int main(void) {
                 if (exp != result)
                         release(result);
         }
+        freeframe(&global);
         return 0;
 }

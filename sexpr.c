@@ -7,6 +7,23 @@ int pdepth;
 
 static SExpr *parselist(FILE *f);
 
+void freeframe(Frame *f) {
+        int i;
+        Entry *ep, *tmp;
+
+        for (i = 0; i < HSIZE; i++) {
+                for (ep = f->bindings[i]; ep != NULL; ep = tmp) {
+                        tmp = ep->next;
+                        free(ep->key);
+                        ((SExpr *)ep->value)->refCount--;
+                        release(ep->value);
+                        free(ep);
+                }
+        }
+        if (f != &global)
+                free(f);
+}
+
 Frame *extend(Frame *env) {
         Frame *new;
 
