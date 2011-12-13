@@ -15,7 +15,6 @@ void freeframe(Frame *f) {
                 for (ep = f->bindings[i]; ep != NULL; ep = tmp) {
                         tmp = ep->next;
                         free(ep->key);
-                        ((SExpr *)ep->value)->refCount--;
                         release(ep->value);
                         free(ep);
                 }
@@ -55,7 +54,6 @@ SExpr *define(SExpr *symbol, SExpr *exp, Frame *env) {
                 if (e == NULL)
                         return NULL;
         } else {
-                ((SExpr *)(e->value))->refCount--;
                 release(e->value);
                 e->value = exp;
         }
@@ -137,13 +135,11 @@ SExpr *operands(SExpr *exp) {
 }
 
 void release(SExpr *exp) {
-        if (exp == &nil || exp->refCount > 0)
+        if (exp == &nil || --(exp->refCount) > 0)
                 return;
         if (exp->type == TYPE_ATOM) {
                 free(exp->atom);
         } else if (exp->type == TYPE_PAIR) {
-                car(exp)->refCount--;
-                cdr(exp)->refCount--;
                 release(car(exp));
                 release(cdr(exp));
         }

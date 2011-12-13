@@ -7,16 +7,17 @@ int main(void) {
                 exp = parse(stdin);
                 if (exp == NULL)
                         break;
+                exp->refCount++;
                 result = eval(exp, &global);
                 if (result == NULL) {
                         release(exp);
                         break;
                 }
+                result->refCount++;
                 print(result);
                 printf("\n");
                 release(exp);
-                if (exp != result)
-                        release(result);
+                release(result);
         }
         freeframe(&global);
         return 0;
