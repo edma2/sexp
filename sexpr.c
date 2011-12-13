@@ -3,7 +3,7 @@
 char buf[BUFLEN];
 Frame global = {NULL, {0}};
 SExpr nil = {{NULL}, TYPE_NIL, 1};
-int parensDepth;
+int pdepth;
 
 static SExpr *parselist(FILE *f);
 
@@ -16,6 +16,25 @@ Frame *extend(Frame *env) {
         new->parent = env;
         memset(new->bindings, 0, SIZE);
         return new;
+}
+
+SExpr *define(Frame *env, char *symbol, SExpr *exp) {
+        Entry *e;
+        SExpr *old;
+
+        e = find(env->bindings, symbol);
+        if (e == NULL) {
+                e = insert(env->bindings, symbol, exp);
+                if (e == NULL)
+                        return NULL;
+                return e->value;
+        }
+        old = e->value;
+        old->refCount--;
+        exp->refCount++;
+        release(e->value);
+        e->value = exp;
+        return exp;
 }
 
 int add(SExpr *exp) {
@@ -120,10 +139,10 @@ SExpr *parse(FILE *f) {
         if (category == ATOM) {
                 return mkatom(buf);
         } else if (category == LPAREN) {
-                parensDepth++;
+                pdepth++;
                 return parselist(f);
         } else if (category == RPAREN) {
-                if (--parensDepth >= 0)
+                if (--pdepth >= 0)
                         return &nil;
         } else if (category == QUOTE) {
                 return cons(mkatom("quote"), cons(parse(f), &nil));

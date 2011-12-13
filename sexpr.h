@@ -2,6 +2,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+#include "hash.h"
 
 #define BUFLEN 1024
 #define SIZE 256
@@ -23,13 +24,6 @@ struct SExpr {
         int refCount;
 };
 
-typedef struct Entry Entry;
-struct Entry {
-        char *key;
-        SExpr *value;
-        Entry *next;
-};
-
 typedef struct Frame Frame;
 struct Frame {
         Frame *parent;
@@ -41,13 +35,13 @@ typedef struct {
         Frame *env;
 } Proc;
 
-extern char buf[BUFLEN];/* general purpose buffer */
-extern Frame global;    /* global frame */
-extern SExpr nil;       /* empty list */
-extern int parensDepth; /* parse depth */
+extern char buf[BUFLEN];        /* general purpose buffer */
+extern Frame global;            /* global frame */
+extern SExpr nil;               /* empty list */
+extern int pdepth;              /* parse depth */
 
-/* If reference counter is 0, free resources associated with SExpr. If SExpr is
- * a Pair, then decrease reference counters for car and cdr. */
+/* If reference counter is 0, free resources associated with SExpr. Then, if
+ * SExpr is a Pair, decrease reference counters for car and cdr. */
 void release(SExpr *exp);
 
 /* Return a new atom with string as its value. */ 
@@ -82,3 +76,6 @@ int add(SExpr *exp);
 
 /* Extend environment and return new frame, or NULL on error. */
 Frame *extend(Frame *env);
+
+/* Define new symbol in environment and return value, or NULL on error. */
+SExpr *define(Frame *env, char *symbol, SExpr *exp);
