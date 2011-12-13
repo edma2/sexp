@@ -18,6 +18,11 @@ Frame *extend(Frame *env) {
         return new;
 }
 
+SExpr *evaldefinition(SExpr *exp, Frame *env) {
+        define(cadr(exp), eval(caddr(exp), env), env);
+        return cons(mkatom("quote"), cons(mkatom("ok"), &nil));
+}
+
 SExpr *define(SExpr *symbol, SExpr *exp, Frame *env) {
         Entry *e;
 
@@ -88,7 +93,7 @@ SExpr *eval(SExpr *exp, Frame *env) {
         if (issymbol(exp))
                 return lookup(exp, env);
         if (isdefine(exp))
-                return define(car(cdr(exp)), eval(car(cdr(cdr(exp))), env), env);
+                return evaldefinition(exp, env);
         if (operator(exp)->atom[0] == '+') {
                 SExpr *list = evalmap(operands(exp), env);
                 if (list == NULL)

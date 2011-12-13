@@ -88,5 +88,7 @@ Frame *extend(Frame *env);
 /* Define new symbol in current frame and return value, or NULL on error. */
 SExpr *define(SExpr *symbol, SExpr *exp, Frame *env);
 
+SExpr *evaldefinition(SExpr *exp, Frame *env);
+
 /* Look up symbol in environment and return value, or NULL if not found. */
 SExpr *lookup(SExpr *symbol, Frame *env);
