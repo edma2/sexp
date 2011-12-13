@@ -20,7 +20,6 @@ Frame *extend(Frame *env) {
 
 SExpr *define(SExpr *symbol, SExpr *exp, Frame *env) {
         Entry *e;
-        SExpr *old;
 
         e = find(env->bindings, symbol->atom);
         if (e == NULL) {
@@ -28,12 +27,11 @@ SExpr *define(SExpr *symbol, SExpr *exp, Frame *env) {
                 if (e == NULL)
                         return NULL;
         } else {
-                old = e->value;
-                old->refCount--;
-                exp->refCount++;
+                ((SExpr *)(e->value))->refCount--;
                 release(e->value);
                 e->value = exp;
         }
+        exp->refCount++;
         return &nil;
 }
 
