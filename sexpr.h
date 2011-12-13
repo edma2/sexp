@@ -64,7 +64,7 @@ void print(SExpr *exp);
 /* Lexer: reads the next token from input stream. */
 int nexttok(FILE *f);
 
-/* Return non-zero value if SExpr is a self evaluating entity. */
+int istaggedlist(SExpr *exp, char *tag);
 int isselfeval(SExpr *exp);
 int isdefine(SExpr *exp);
 int issymbol(SExpr *exp);

@@ -105,7 +105,15 @@ int issymbol(SExpr *exp) {
 }
 
 int isdefine(SExpr *exp) {
-        return exp->type == TYPE_PAIR && !strcmp(car(exp)->atom, "define");
+        return istaggedlist(exp, "define");
+}
+
+int isquoted(SExpr *exp) {
+        return istaggedlist(exp, "quote");
+}
+
+int istaggedlist(SExpr *exp, char *tag) {
+        return exp->type == TYPE_PAIR && !strcmp(car(exp)->atom, tag);
 }
 
 SExpr *eval(SExpr *exp, Frame *env) {
