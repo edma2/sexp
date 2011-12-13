@@ -11,6 +11,9 @@
 #define cdr(p) (p->pair[1])
 #define cons(l,r) (mkpair(l,r))
 
+#define cadr(p) (car(cdr(p)))
+#define caddr(p) (car(cdr(cdr(p))))
+
 enum {QUOTE, LPAREN, RPAREN, ATOM, END, ERR};
 enum {TYPE_ATOM, TYPE_PAIR, TYPE_NIL};
 
