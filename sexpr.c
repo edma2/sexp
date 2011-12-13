@@ -37,6 +37,18 @@ SExpr *define(Frame *env, char *symbol, SExpr *exp) {
         return exp;
 }
 
+SExpr *lookup(Frame *env, char *symbol) {
+        Frame *fp;
+        Entry *e;
+
+        for (fp = env; fp != NULL; fp = fp->parent) {
+                e = find(env->bindings, symbol);
+                if (e != NULL)
+                        return e->value;
+        }
+        return NULL;
+}
+
 int add(SExpr *exp) {
         if (exp == &nil)
                 return 0;

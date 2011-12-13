@@ -77,5 +77,8 @@ int add(SExpr *exp);
 /* Extend environment and return new frame, or NULL on error. */
 Frame *extend(Frame *env);
 
-/* Define new symbol in environment and return value, or NULL on error. */
+/* Define new symbol in current frame and return value, or NULL on error. */
 SExpr *define(Frame *env, char *symbol, SExpr *exp);
+
+/* Look up symbol in environment and return value, or NULL if not found. */
+SExpr *lookup(Frame *env, char *symbol);
