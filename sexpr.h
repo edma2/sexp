@@ -56,7 +56,7 @@ SExpr *mkatom(char *str);
 SExpr *mkpair(SExpr *car, SExpr *cdr);
 
 /* Parse input stream into an SExpr. */
-SExpr *parse(FILE *f);
+SExpr *parse(FILE *f, int depth);
 
 /* Print SExpr. */
 void print(SExpr *exp);
