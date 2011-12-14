@@ -125,18 +125,12 @@ int istaggedlist(SExpr *exp, char *tag) {
 }
 
 SExpr *eval(SExpr *exp, Frame *env) {
-        SExpr *op;
-
         if (isselfeval(exp))
                 return exp;
         if (issymbol(exp))
                 return lookup(exp, env);
         if (isdefine(exp))
                 return evaldefine(exp, env);
-        //op = eval(car(exp));
-
-
-        /*
         if (operator(exp)->atom[0] == '+') {
                 SExpr *list = evalmap(operands(exp), env);
                 if (list == NULL)
@@ -145,7 +139,6 @@ SExpr *eval(SExpr *exp, Frame *env) {
                 release(list);
                 return mkatom(buf);
         }
-        */
         return exp;
 }
 
@@ -214,7 +207,7 @@ SExpr *mkpair(SExpr *car, SExpr *cdr) {
 
 SExpr *parse(FILE *f, int depth) {
         int category;
-        SExpr *exp, *text;
+        SExpr *exp;
 
         category = nexttok(f);
         if (category == END) {
@@ -225,8 +218,7 @@ SExpr *parse(FILE *f, int depth) {
         } else if (category == RPAREN) {
                 return depth > 0 ? &nil : NULL;
         } else if (category == QUOTE) {
-                text = parse(f, 0);
-                exp = cons(mkatom("quote"), cons(text, &nil));
+                exp = cons(mkatom("quote"), cons(parse(f, 0), &nil));
         } else {
                 exp = mkatom(buf);
         }
