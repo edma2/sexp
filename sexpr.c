@@ -38,9 +38,7 @@ SExpr *evaldefine(SExpr *exp, Frame *env) {
         value = eval(caddr(exp), env);
         if (value == NULL)
                 return NULL;
-        if (define(cadr(exp), value, env) == NULL)
-                return NULL;
-        return mkatom("ok");
+        return define(cadr(exp), value, env);
 }
 
 SExpr *define(SExpr *symbol, SExpr *exp, Frame *env) {
@@ -56,7 +54,7 @@ SExpr *define(SExpr *symbol, SExpr *exp, Frame *env) {
                 e->value = exp;
         }
         exp->refCount++;
-        return &nil;
+        return mkatom("ok");
 }
 
 SExpr *lookup(SExpr *symbol, Frame *env) {
