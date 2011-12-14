@@ -37,6 +37,7 @@ struct SExpr {
 extern char buf[BUFLEN];        /* general purpose buffer */
 extern Frame global;            /* global frame */
 extern SExpr nil;               /* empty list */
+extern int eof;                 /* End of file signal */
 
 void freeframe(Frame *f);
 

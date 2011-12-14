@@ -3,6 +3,7 @@
 char buf[BUFLEN];
 Frame global = {NULL, {0}};
 SExpr nil = {{NULL}, TYPE_NIL, 1};
+int eof = 0;
 
 void freeframe(Frame *f) {
         int i;
@@ -67,6 +68,7 @@ SExpr *lookup(SExpr *symbol, Frame *env) {
                 if (e != NULL)
                         return e->value;
         }
+        printf("%s: undefined variable!\n", symbol->atom);
         return NULL;
 }
 
@@ -85,8 +87,6 @@ SExpr *evalmap(SExpr *exps, Frame *env) {
 int isselfeval(SExpr *exp) {
         char *s;
 
-        if (exp->type == TYPE_NIL)
-                return 1;
         if (exp->type == TYPE_ATOM) {
                 for (s = exp->atom; *s != '\0'; s++) {
                         if (!isdigit(*s))
@@ -127,12 +127,17 @@ int istaggedlist(SExpr *exp, char *tag) {
 }
 
 SExpr *eval(SExpr *exp, Frame *env) {
+        SExpr *op;
+
         if (isselfeval(exp))
                 return exp;
         if (issymbol(exp))
                 return lookup(exp, env);
         if (isdefine(exp))
                 return evaldefine(exp, env);
+        //op = eval(car(exp));
+
+
         /*
         if (operator(exp)->atom[0] == '+') {
                 SExpr *list = evalmap(operands(exp), env);
@@ -214,14 +219,19 @@ SExpr *parse(FILE *f, int depth) {
         SExpr *exp;
 
         category = nexttok(f);
-        if (category == ATOM)
-                exp = mkatom(buf);
-        else if (category == LPAREN)
-                exp = parse(f, depth + 1);
-        else if (category == RPAREN && depth >= 0)
-                return &nil;
-        else
+        if (category == END) {
+                eof = 1;
                 return NULL;
+        } else if (category == LPAREN) {
+                exp = parse(f, depth + 1);
+        } else if (category == RPAREN && depth > 0) {
+                return &nil;
+        } else if (category == QUOTE) {
+                SExpr *text = parse(f, 0);
+                exp = cons(mkatom("quote"), cons(text, &nil));
+        } else {
+                exp = mkatom(buf);
+        }
 
         if (depth)
                 exp = cons(exp, parse(f, depth));

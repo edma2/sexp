@@ -5,13 +5,18 @@ int main(void) {
 
         while (1) {
                 exp = parse(stdin, 0);
-                if (exp == NULL)
-                        break;
+                if (exp == NULL) {
+                        if (eof)
+                                break;
+                        printf("Parse error!\n");
+                        continue;
+                }
                 exp->refCount++;
                 result = eval(exp, &global);
                 if (result == NULL) {
+                        printf("Evaluation error!\n");
                         release(exp);
-                        break;
+                        continue;
                 }
                 result->refCount++;
                 print(result);
