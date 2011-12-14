@@ -40,7 +40,7 @@ SExpr *evaldefine(SExpr *exp, Frame *env) {
                 return NULL;
         if (define(cadr(exp), value, env) == NULL)
                 return NULL;
-        return cons(mkatom("quote"), cons(mkatom("ok"), &nil));
+        return mkatom("ok");
 }
 
 SExpr *define(SExpr *symbol, SExpr *exp, Frame *env) {
