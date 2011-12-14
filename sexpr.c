@@ -216,7 +216,7 @@ SExpr *mkpair(SExpr *car, SExpr *cdr) {
 
 SExpr *parse(FILE *f, int depth) {
         int category;
-        SExpr *exp;
+        SExpr *exp, *text;
 
         category = nexttok(f);
         if (category == END) {
@@ -224,10 +224,10 @@ SExpr *parse(FILE *f, int depth) {
                 return NULL;
         } else if (category == LPAREN) {
                 exp = parse(f, depth + 1);
-        } else if (category == RPAREN && depth > 0) {
-                return &nil;
+        } else if (category == RPAREN) {
+                return depth > 0 ? &nil : NULL;
         } else if (category == QUOTE) {
-                SExpr *text = parse(f, 0);
+                text = parse(f, 0);
                 exp = cons(mkatom("quote"), cons(text, &nil));
         } else {
                 exp = mkatom(buf);
