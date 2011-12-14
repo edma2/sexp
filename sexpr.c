@@ -230,11 +230,7 @@ SExpr *parse(FILE *f, int depth) {
         } else {
                 exp = mkatom(buf);
         }
-
-        if (depth)
-                exp = cons(exp, parse(f, depth));
-
-        return exp;
+        return depth ? cons(exp, parse(f, depth)) : exp;
 }
 
 void print(SExpr *exp) {
