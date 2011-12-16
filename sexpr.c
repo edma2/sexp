@@ -257,16 +257,15 @@ int nexttok(FILE *f) {
                         return QUOTE;
                 break;
         }
-        ungetc(c, f);
         for (i = 0; i < BUFLEN-1; i++) {
+                buf[i] = c;
                 c = getc(f);
                 if (c == EOF)
                         return END;
                 if (isreserved(c) || isspace(c))
                         break;
-                buf[i] = c;
         }
-        buf[i] = '\0';
+        buf[i+1] = '\0';
         if (isreserved(c))
                 ungetc(c, f);
         return ATOM;
