@@ -97,7 +97,7 @@ SExpr *evalmap(SExpr *exps, Frame *env) {
 }
 
 int isselfeval(SExpr *exp) {
-        return isnumber(exp);
+        return exp == &nil || isnumber(exp);
 }
 
 int isnumber(SExpr *exp) {
