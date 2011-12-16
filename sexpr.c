@@ -3,7 +3,6 @@
 char buf[BUFLEN];
 Frame global = {NULL, {0}};
 SExpr nil = {{NULL}, TYPE_NIL, 1};
-int eof = 0;
 
 void freeframe(Frame *f) {
         int i;
@@ -77,22 +76,38 @@ int add(SExpr *exp) {
 }
 
 SExpr *evalmap(SExpr *exps, Frame *env) {
+        SExpr *first, *rest, *exp;
+
         if (exps == &nil)
                 return exps;
-        return cons(eval(car(exps), env), evalmap(cdr(exps), env));
+        first = eval(car(exps), env);
+        if (first == NULL)
+                return NULL;
+        rest = evalmap(cdr(exps), env);
+        if (rest == NULL) {
+                release(first);
+                return NULL;
+        }
+        exp = cons(first, rest);
+        if (exp == NULL) {
+                release(first);
+                release(rest);
+        }
+        return exp;
 }
 
 int isselfeval(SExpr *exp) {
+        return isnumber(exp);
+}
+
+int isnumber(SExpr *exp) {
         char *s;
 
-        if (exp->type == TYPE_ATOM) {
-                for (s = exp->atom; *s != '\0'; s++) {
-                        if (!isdigit(*s))
-                                return 0;
-                }
-                return 1;
+        for (s = exp->atom; *s != '\0'; s++) {
+                if (!isdigit(*s))
+                        return 0;
         }
-        return 0;
+        return 1;
 }
 
 int issymbol(SExpr *exp) {
@@ -133,8 +148,10 @@ SExpr *eval(SExpr *exp, Frame *env) {
                 return evaldefine(exp, env);
         if (operator(exp)->atom[0] == '+') {
                 SExpr *list = evalmap(operands(exp), env);
-                if (list == NULL)
+                if (list == NULL) {
+                        release(exp);
                         return NULL;
+                }
                 snprintf(buf, BUFLEN, "%d", add(list));
                 release(list);
                 return mkatom(buf);
@@ -165,8 +182,6 @@ void release(SExpr *exp) {
 SExpr *mkatom(char *str) {
         SExpr *exp;
 
-        if (str == NULL)
-                return NULL;
         exp = malloc(sizeof(struct SExpr));
         if (exp == NULL)
                 return NULL;
@@ -183,19 +198,9 @@ SExpr *mkatom(char *str) {
 SExpr *mkpair(SExpr *car, SExpr *cdr) {
         SExpr *exp;
 
-        if (car == NULL || cdr == NULL) {
-                if (car != NULL)
-                        release(car);
-                if (cdr != NULL)
-                        release(cdr);
-                return NULL;
-        }
         exp = malloc(sizeof(struct SExpr));
-        if (exp == NULL) {
-                release(car);
-                release(cdr);
+        if (exp == NULL)
                 return NULL;
-        }
         car->refCount++;
         cdr->refCount++;
         car(exp) = car;
@@ -207,22 +212,61 @@ SExpr *mkpair(SExpr *car, SExpr *cdr) {
 
 SExpr *parse(FILE *f, int depth) {
         int category;
-        SExpr *exp;
+        SExpr *exp, *rest, *first;
 
         category = nexttok(f);
-        if (category == END) {
-                eof = 1;
-                return NULL;
-        } else if (category == LPAREN) {
-                exp = parse(f, depth + 1);
-        } else if (category == RPAREN) {
-                return depth > 0 ? &nil : NULL;
+        if (category == LPAREN) {
+                exp = parse(f, depth+1);
+        } else if (category == RPAREN && depth) {
+                return &nil;
         } else if (category == QUOTE) {
-                exp = cons(mkatom("quote"), cons(parse(f, 0), &nil));
-        } else {
+                rest = parse(f, 0);
+                if (rest == NULL)
+                        return NULL;
+                exp = mkquote(rest);
+                if (exp == NULL)
+                        release(rest);
+        } else if (category == ATOM) {
                 exp = mkatom(buf);
+        } else {
+                /* Error or EOF */
+                return NULL;
         }
-        return depth ? cons(exp, parse(f, depth)) : exp;
+        if (exp == NULL)
+                return NULL;
+        if (depth) {
+                rest = parse(f, depth);
+                if (rest == NULL) {
+                        release(exp);
+                        return NULL;
+                }
+                first = exp;
+                exp = cons(first, rest);
+                if (exp == NULL) {
+                        release(first);
+                        release(rest);
+                }
+        }
+        return exp;
+}
+
+SExpr *mkquote(SExpr *text) {
+        SExpr *tag, *list, *exp;
+
+        tag = mkatom("quote");
+        if (tag == NULL)
+                return NULL;
+        list = cons(text, &nil);
+        if (list == NULL) {
+                release(tag);
+                return NULL;
+        }
+        exp = cons(tag, list);
+        if (exp == NULL) {
+                release(tag);
+                release(list);
+        }
+        return exp;
 }
 
 void print(SExpr *exp) {

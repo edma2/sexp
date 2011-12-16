@@ -51,6 +51,8 @@ SExpr *mkatom(char *str);
 /* Return a new pair constructed from the car and cdr pairs. */
 SExpr *mkpair(SExpr *car, SExpr *cdr);
 
+SExpr *mkquote(SExpr *text);
+
 /* Parse input stream into an SExpr. */
 SExpr *parse(FILE *f, int depth);
 
@@ -62,6 +64,7 @@ int nexttok(FILE *f);
 
 int istaggedlist(SExpr *exp, char *tag);
 int isselfeval(SExpr *exp);
+int isnumber(SExpr *exp);
 int isdefine(SExpr *exp);
 int issymbol(SExpr *exp);
 
