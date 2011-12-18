@@ -7,10 +7,9 @@
 #define BUFLEN 1024
 #define SIZE 256
 #define isreserved(c) (c == ')' || c == '(' || c == '\'')
+
 #define car(p) (p->pair[0])
 #define cdr(p) (p->pair[1])
-#define cons(l,r) (mkpair(l,r))
-
 #define cadr(p) (car(cdr(p)))
 #define caddr(p) (car(cdr(cdr(p))))
 
@@ -34,63 +33,33 @@ struct SExpr {
         Frame *frame;
 };
 
-extern char buf[BUFLEN];        /* general purpose buffer */
-extern Frame global;            /* global frame */
-extern SExpr nil;               /* empty list */
-extern int eof;                 /* End of file signal */
+extern char buf[BUFLEN];
+extern Frame global;
+extern SExpr nil;
 
-void freeframe(Frame *f);
-
-/* If reference counter is 0, free resources associated with SExpr. Then, if
- * SExpr is a Pair, decrease reference counters for car and cdr. */
+SExpr *mkatom(char *str);
+SExpr *mkpair(SExpr *car, SExpr *cdr);
+SExpr *cons(SExpr *car, SExpr *cdr);
 void release(SExpr *exp);
 
-/* Return a new atom with string as its value. */ 
-SExpr *mkatom(char *str);
-
-/* Return a new pair constructed from the car and cdr pairs. */
-SExpr *mkpair(SExpr *car, SExpr *cdr);
-
-SExpr *mkquote(SExpr *text);
-
-/* Parse input stream into an SExpr. */
+int nexttok(FILE *f);
 SExpr *parse(FILE *f, int depth);
 
-/* Print SExpr. */
-void print(SExpr *exp);
-
-/* Lexer: reads the next token from input stream. */
-int nexttok(FILE *f);
-
+SExpr *eval(SExpr *exp, Frame *env);
+SExpr *evalmap(SExpr *exps, Frame *env);
 int istaggedlist(SExpr *exp, char *tag);
-int isselfeval(SExpr *exp);
 int isnumber(SExpr *exp);
 int isdefine(SExpr *exp);
 int issymbol(SExpr *exp);
+int isquoted(SExpr *exp);
+int islambda(SExpr *exp);
 
-/* Evaluate SExpr and return result, or NULL on error. */
-SExpr *eval(SExpr *exp, Frame *env);
+int primadd(SExpr *exp);
 
-/* Map eval to a list of SExprs. */
-SExpr *evalmap(SExpr *exps, Frame *env);
+void print(SExpr *exp);
 
-/* Return operator of SExpr. */
-SExpr *operator(SExpr *exp);
-
-/* Return operands of SExpr. */
-SExpr *operands(SExpr *exp);
-
-/* (+ E0, ... ) */
-int add(SExpr *exp);
-
-/* Extend environment and return new frame, or NULL on error. */
 Frame *extend(Frame *env);
+void freeEnv(Frame *f);
 
-/* Define new symbol in current frame and return value, or NULL on error. */
 SExpr *define(SExpr *symbol, SExpr *exp, Frame *env);
-
-SExpr *evaldefine(SExpr *exp, Frame *env);
-SExpr *evallambda(SExpr *exp, Frame *env);
-
-/* Look up symbol in environment and return value, or NULL if not found. */
 SExpr *lookup(SExpr *symbol, Frame *env);
