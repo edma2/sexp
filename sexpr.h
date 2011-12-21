@@ -15,7 +15,7 @@
 #define caddr(p) (car(cdr(cdr(p))))
 
 enum {QUOTE, LPAREN, RPAREN, ATOM, END, ERR};
-enum {TYPE_ATOM, TYPE_PAIR, TYPE_NIL};
+enum {TYPE_ATOM, TYPE_PAIR, TYPE_NIL, TYPE_PRIM};
 
 typedef struct Frame Frame;
 struct Frame {
@@ -28,6 +28,7 @@ struct SExpr {
         union {
                 char *atom;
                 SExpr *pair[2];
+                SExpr *(*prim)(SExpr *);
         };
         int type;       /* TYPE_PAIR, TYPE_ATOM, TYPE_NIL */
         int refs;       /* # of internal references */
@@ -38,8 +39,7 @@ extern char buf[BUFLEN];
 extern Frame global;
 extern SExpr nil;
 
-/** Debugging */
-//void print_frame(Frame *frame);
+extern SExpr prim_add;
 
 /** Memory */
 SExpr *make_atom(char *str);
@@ -53,17 +53,27 @@ void print(SExpr *exp);
 
 /** Eval */
 SExpr *eval(SExpr *exp, Frame *env);
+SExpr *eval_list(SExpr *ls, Frame *env);
+SExpr *apply(SExpr *op, SExpr *operands);
+
+SExpr *_prim_add(SExpr *operands);
+
+int numeric(char *s);
+int atomic(SExpr *exp);
+int pair(SExpr *exp);
+int empty(SExpr *exp);
+int primitive(SExpr *exp);
+int immortal(SExpr *exp);
+
 int is_tagged_list(SExpr *ls, char *tag);
-int is_nil(SExpr *exp);
 int is_number(SExpr *exp);
 int is_define(SExpr *exp);
 int is_symbol(SExpr *exp);
 int is_quoted(SExpr *exp);
 int is_lambda(SExpr *exp);
-
-int isnum(char *s);
-int atomic(SExpr *exp);
+int is_application(SExpr *exp);
 
 /** Environment */
+void init(void);
 int env_bind_symbol(char *sym, SExpr *val, Frame *env);
 SExpr *env_lookup_symbol(char *sym, Frame *env);

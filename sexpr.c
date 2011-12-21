@@ -1,8 +1,9 @@
 #include "sexpr.h"
 
 char buf[BUFLEN];
-Frame global = {NULL, {0}};
-SExpr nil = {{NULL}, TYPE_NIL};
+Frame global = {.parent = NULL};
+SExpr nil = {.type = TYPE_NIL};
+SExpr prim_add = {.prim = _prim_add, .type = TYPE_PRIM};
 
 SExpr *make_atom(char *s) {
         SExpr *exp;
@@ -17,7 +18,7 @@ SExpr *make_atom(char *s) {
         }
         exp->type = TYPE_ATOM;
         exp->refs = 0;
-
+        exp->frame = NULL;
         return exp;
 }
 
@@ -33,14 +34,18 @@ SExpr *make_pair(SExpr *car, SExpr *cdr) {
         cdr(exp) = cdr;
         exp->type = TYPE_PAIR;
         exp->refs = 0;
-
+        exp->frame = NULL;
         return exp;
 }
 
+int immortal(SExpr *exp) {
+        return exp == &prim_add || exp == &nil;
+}
+
 void dealloc(SExpr *exp) {
-        if (exp->type == TYPE_NIL || exp->refs > 0)
+        if (immortal(exp) || exp->refs > 0)
                 return;
-        if (exp->type == TYPE_ATOM) {
+        if (atomic(exp)) {
                 free(exp->atom);
         } else {
                 car(exp)->refs--;
@@ -101,22 +106,87 @@ SExpr *parse(FILE *f, int depth) {
         return ls;
 }
 
+SExpr *eval_list(SExpr *ls, Frame *env) {
+        SExpr *car, *cdr, *exps;
+
+        if (empty(ls))
+                return &nil;
+        car = eval(car(ls), env);
+        if (car == NULL)
+                return NULL;
+        cdr = eval_list(cdr(ls), env);
+        if (cdr == NULL) {
+                dealloc(car);
+                return NULL;
+        }
+        exps = cons(car, cdr);
+        if (exps == NULL) {
+                dealloc(car);
+                dealloc(cdr);
+        }
+        return exps;
+}
+
 SExpr *eval(SExpr *exp, Frame *env) {
-        if (is_nil(exp))
-                return exp;
+        SExpr *val, *op, *operands;
+
+        if (empty(exp))
+                return &nil;
         if (is_number(exp))
                 return exp;
         if (is_quoted(exp))
                 return cadr(exp);
-        if (is_symbol(exp))
-                return env_lookup_symbol(exp->atom, env);
+        if (is_symbol(exp)) {
+                val = env_lookup_symbol(exp->atom, env);
+                if (val == NULL)
+                        fprintf(stderr, "Unknown symbol!\n");
+                return val;
+        }
         if (is_define(exp)) {
-                if (!env_bind_symbol(cadr(exp)->atom, caddr(exp), env))
+                val = eval(caddr(exp), env);
+                if (val == NULL)
                         return NULL;
+                if (!env_bind_symbol(cadr(exp)->atom, val, env)) {
+                        dealloc(val);
+                        return NULL;
+                }
                 return &nil;
+        }
+        if (is_application(exp)) {
+                op = eval(car(exp), env);
+                if (op == NULL)
+                        return NULL;
+                operands = eval_list(cdr(exp), env);
+                if (operands == NULL) {
+                        dealloc(op);
+                        return NULL;
+                }
+                val = apply(op, operands);
+                dealloc(op);
+                dealloc(operands);
+                return val;
         }
         fprintf(stderr, "Unknown expression!\n");
         return NULL;
+}
+
+SExpr *apply(SExpr *op, SExpr *operands) {
+        if (primitive(op))
+                return op->prim(operands);
+        return NULL;
+}
+
+SExpr *_prim_add(SExpr *operands) {
+        int sum;
+
+        for (sum = 0; !empty(operands); operands = cdr(operands))
+                sum += atoi(car(operands)->atom);
+        snprintf(buf, BUFLEN, "%d", sum);
+        return make_atom(buf);
+}
+
+void init(void) {
+        insert(global.bindings, "+", &prim_add);
 }
 
 SExpr *env_lookup_symbol(char *sym, Frame *env) {
@@ -147,11 +217,19 @@ int atomic(SExpr *exp) {
         return exp->type == TYPE_ATOM;
 }
 
-int is_nil(SExpr *exp) {
-        return exp == &nil;
+int empty(SExpr *exp) {
+        return exp->type == TYPE_NIL;
 }
 
-int isnum(char *s) {
+int pair(SExpr *exp) {
+        return exp->type == TYPE_PAIR;
+}
+
+int primitive(SExpr *exp) {
+        return exp->type == TYPE_PRIM;
+}
+
+int numeric(char *s) {
         for (; *s != '\0'; s++) {
                 if (!isdigit(*s))
                         break;
@@ -159,12 +237,16 @@ int isnum(char *s) {
         return *s == '\0';
 }
 
+int is_application(SExpr *exp) {
+        return pair(exp);
+}
+
 int is_number(SExpr *exp) {
-        return atomic(exp) && isnum(exp->atom);
+        return atomic(exp) && numeric(exp->atom);
 }
 
 int is_symbol(SExpr *exp) {
-        return atomic(exp) && !isnum(exp->atom);
+        return atomic(exp) && !numeric(exp->atom);
 }
 
 int is_define(SExpr *exp) {
@@ -180,24 +262,22 @@ int is_lambda(SExpr *exp) {
 }
 
 int is_tagged_list(SExpr *ls, char *tag) {
-        if (ls->type != TYPE_PAIR)
-                return 0;
-        if (!atomic(car(ls)))
-                return 0;
-        return !strcmp(car(ls)->atom, tag);
+        return pair(ls) && atomic(car(ls)) && !strcmp(car(ls)->atom, tag);
 }
 
 void print(SExpr *exp) {
-        if (exp->type == TYPE_ATOM) {
+        if (atomic(exp)) {
                 printf("%s", exp->atom);
-        } else if (exp->type == TYPE_NIL) {
+        } else if (empty(exp)) {
                 printf("()");
-        } else {
+        } else if (pair(exp)) {
                 printf("(");
                 print(car(exp));
                 printf(".");
                 print(cdr(exp));
                 printf(")");
+        } else if (primitive(exp)) {
+                printf("PRIMITIVE");
         }
 }
 
