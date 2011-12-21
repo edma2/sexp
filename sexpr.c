@@ -4,10 +4,13 @@ char buf[BUFLEN];
 Frame global = {.parent = NULL};
 SExpr nil = {.type = TYPE_NIL};
 
-SExpr add = {.prim = prim_add, .type = TYPE_PRIM};
-SExpr sub = {.prim = prim_sub, .type = TYPE_PRIM};
-SExpr mult = {.prim = prim_mult, .type = TYPE_PRIM};
-SExpr divide = {.prim = prim_divide, .type = TYPE_PRIM};
+SExpr Add = {.prim = prim_add, .type = TYPE_PRIM};
+SExpr Sub = {.prim = prim_sub, .type = TYPE_PRIM};
+SExpr Mult = {.prim = prim_mult, .type = TYPE_PRIM};
+SExpr Div = {.prim = prim_div, .type = TYPE_PRIM};
+SExpr Car = {.prim = prim_cdr, .type = TYPE_PRIM};
+SExpr Cdr = {.prim = prim_car, .type = TYPE_PRIM};
+SExpr Cons = {.prim = prim_cons, .type = TYPE_PRIM};
 
 SExpr *make_atom(char *s) {
         SExpr *exp;
@@ -42,12 +45,12 @@ SExpr *make_pair(SExpr *car, SExpr *cdr) {
         return exp;
 }
 
-int immortal(SExpr *exp) {
+int unfreeable(SExpr *exp) {
         return primitive(exp) || exp == &nil;
 }
 
 void dealloc(SExpr *exp) {
-        if (immortal(exp) || exp->refs > 0)
+        if (unfreeable(exp) || exp->refs > 0)
                 return;
         if (atomic(exp)) {
                 free(exp->atom);
@@ -207,7 +210,7 @@ SExpr *prim_mult(SExpr *args) {
         return make_atom(buf);
 }
 
-SExpr *prim_divide(SExpr *args) {
+SExpr *prim_div(SExpr *args) {
         int quot;
 
         quot = atoi(car(args)->atom);
@@ -218,11 +221,26 @@ SExpr *prim_divide(SExpr *args) {
         return make_atom(buf);
 }
 
+SExpr *prim_cons(SExpr *args) {
+        return cons(car(args), cadr(args));
+}
+
+SExpr *prim_car(SExpr *args) {
+        return car(args);
+}
+
+SExpr *prim_cdr(SExpr *args) {
+        return cdr(args);
+}
+
 void init(void) {
-        insert(global.bindings, "+", &add);
-        insert(global.bindings, "-", &sub);
-        insert(global.bindings, "*", &mult);
-        insert(global.bindings, "/", &divide);
+        insert(global.bindings, "+", &Add);
+        insert(global.bindings, "-", &Sub);
+        insert(global.bindings, "*", &Mult);
+        insert(global.bindings, "/", &Div);
+        insert(global.bindings, "car", &Car);
+        insert(global.bindings, "cdr", &Cdr);
+        insert(global.bindings, "cons", &Cons);
 }
 
 SExpr *env_lookup(char *sym, Frame *env) {

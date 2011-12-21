@@ -39,10 +39,13 @@ extern char buf[BUFLEN];
 extern Frame global;
 extern SExpr nil;
 
-extern SExpr add;
-extern SExpr sub;
-extern SExpr mult;
-extern SExpr divide;
+extern SExpr Add;
+extern SExpr Sub;
+extern SExpr Mult;
+extern SExpr Div;
+extern SExpr Cons;
+extern SExpr Car;
+extern SExpr Cdr;
 
 /** Memory */
 SExpr *make_atom(char *str);
@@ -58,7 +61,10 @@ void print(SExpr *exp);
 SExpr *prim_add(SExpr *args);
 SExpr *prim_sub(SExpr *args);
 SExpr *prim_mult(SExpr *args);
-SExpr *prim_divide(SExpr *args);
+SExpr *prim_div(SExpr *args);
+SExpr *prim_cons(SExpr *args);
+SExpr *prim_cdr(SExpr *args);
+SExpr *prim_car(SExpr *args);
 
 /** Eval */
 SExpr *eval(SExpr *exp, Frame *env);
@@ -70,7 +76,7 @@ int atomic(SExpr *exp);
 int pair(SExpr *exp);
 int empty(SExpr *exp);
 int primitive(SExpr *exp);
-int immortal(SExpr *exp);
+int unfreeable(SExpr *exp);
 
 int is_tagged_list(SExpr *ls, char *tag);
 int is_number(SExpr *exp);
