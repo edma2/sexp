@@ -8,6 +8,7 @@
 #define SIZE 256
 #define isreserved(c) (c == ')' || c == '(' || c == '\'')
 
+#define cons(car, cdr) (make_pair(car, cdr))
 #define car(p) (p->pair[0])
 #define cdr(p) (p->pair[1])
 #define cadr(p) (car(cdr(p)))
@@ -28,38 +29,41 @@ struct SExpr {
                 char *atom;
                 SExpr *pair[2];
         };
-        int type;
-        int refCount;
-        Frame *frame;
+        int type;       /* TYPE_PAIR, TYPE_ATOM, TYPE_NIL */
+        int refs;       /* # of internal references */
+        Frame *frame;   /* procs only */
 };
 
 extern char buf[BUFLEN];
 extern Frame global;
 extern SExpr nil;
 
-SExpr *mkatom(char *str);
-SExpr *mkpair(SExpr *car, SExpr *cdr);
-SExpr *cons(SExpr *car, SExpr *cdr);
-void release(SExpr *exp);
+/** Debugging */
+//void print_frame(Frame *frame);
 
-int nexttok(FILE *f);
+/** Memory */
+SExpr *make_atom(char *str);
+SExpr *make_pair(SExpr *car, SExpr *cdr);
+void dealloc(SExpr *exp);
+
+/** I/O */
 SExpr *parse(FILE *f, int depth);
-
-SExpr *eval(SExpr *exp, Frame *env);
-SExpr *evalmap(SExpr *exps, Frame *env);
-int istaggedlist(SExpr *exp, char *tag);
-int isnumber(SExpr *exp);
-int isdefine(SExpr *exp);
-int issymbol(SExpr *exp);
-int isquoted(SExpr *exp);
-int islambda(SExpr *exp);
-
-int primadd(SExpr *exp);
-
+int read_token(FILE *f);
 void print(SExpr *exp);
 
-Frame *extend(Frame *env);
-void freeEnv(Frame *f);
+/** Eval */
+SExpr *eval(SExpr *exp, Frame *env);
+int is_tagged_list(SExpr *ls, char *tag);
+int is_nil(SExpr *exp);
+int is_number(SExpr *exp);
+int is_define(SExpr *exp);
+int is_symbol(SExpr *exp);
+int is_quoted(SExpr *exp);
+int is_lambda(SExpr *exp);
 
-SExpr *define(SExpr *symbol, SExpr *exp, Frame *env);
-SExpr *lookup(SExpr *symbol, Frame *env);
+int isnum(char *s);
+int atomic(SExpr *exp);
+
+/** Environment */
+int env_bind_symbol(char *sym, SExpr *val, Frame *env);
+SExpr *env_lookup_symbol(char *sym, Frame *env);

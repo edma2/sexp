@@ -1,33 +1,23 @@
 #include "sexpr.h"
 
 int main(void) {
-        SExpr *parsedExp, *evaledExp;
+        SExpr *input, *result;
 
         while (1) {
-                parsedExp = parse(stdin, 0);
-                if (parsedExp == NULL) {
-                        fprintf(stderr, "Parse error!\n");
+                input = parse(stdin, 0);
+                if (input == NULL)
+                        break;
+                result = eval(input, &global);
+                if (result == NULL) {
+                        dealloc(input);
                         break;
                 }
-                parsedExp->refCount++;
-
-                evaledExp = eval(parsedExp, &global);
-                if (evaledExp == NULL) {
-                        parsedExp->refCount--;
-                        release(parsedExp);
-                        fprintf(stderr, "Eval error!\n");
-                        continue;
-                }
-                evaledExp->refCount++;
-
-                print(evaledExp);
+                result->refs++;
+                dealloc(input);
+                print(result);
                 printf("\n");
-
-                evaledExp->refCount--;
-                release(evaledExp);
-                parsedExp->refCount--;
-                release(parsedExp);
+                result->refs--;
+                dealloc(result);
         }
-        freeEnv(&global);
         return 0;
 }
