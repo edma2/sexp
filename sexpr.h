@@ -36,8 +36,9 @@ struct SExpr {
 };
 
 extern char buf[BUFLEN];
-extern Frame global;
+extern Frame *global;
 extern SExpr nil;
+extern int eof;
 
 extern SExpr Add;
 extern SExpr Sub;
@@ -74,6 +75,9 @@ SExpr *eval(SExpr *exp, Frame *env);
 SExpr *eval_list(SExpr *ls, Frame *env);
 SExpr *apply(SExpr *op, SExpr *operands);
 
+void init(void);
+void cleanup(void);
+
 int is_tagged_list(SExpr *ls, char *tag);
 int is_number(SExpr *exp);
 int is_define(SExpr *exp);
@@ -91,7 +95,8 @@ int primitive(SExpr *exp);
 int unfreeable(SExpr *exp);
 
 /** Environment */
-void init(void);
 int env_bind(char *sym, SExpr *val, Frame *env);
 SExpr *env_lookup(char *sym, Frame *env);
 Frame *extend(SExpr *args, SExpr *params, Frame *env);
+Frame *new_frame(Frame *parent);
+void free_frame(Frame *fr);

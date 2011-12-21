@@ -1,8 +1,9 @@
 #include "sexpr.h"
 
 char buf[BUFLEN];
-Frame global = {.parent = NULL};
+Frame *global;
 SExpr nil = {.type = TYPE_NIL};
+int eof;
 
 SExpr Add = {.prim = prim_add, .type = TYPE_PRIM};
 SExpr Sub = {.prim = prim_sub, .type = TYPE_PRIM};
@@ -65,7 +66,7 @@ void dealloc(SExpr *exp) {
 
 SExpr *parse(FILE *f, int depth) {
         int category;
-        SExpr *car, *cdr, *ls;
+        SExpr *car = NULL, *cdr, *ls;
 
         category = read_token(f);
         if (category == LPAREN) {
@@ -95,8 +96,8 @@ SExpr *parse(FILE *f, int depth) {
                 car = cdr;
         } else if (category == ATOM) {
                 car = make_atom(buf);
-        } else {
-                car = NULL;
+        } else if (category == END) {
+                eof = 1;
         }
         if (!depth || car == NULL)
                 return car;
@@ -189,13 +190,15 @@ SExpr *eval(SExpr *exp, Frame *env) {
 
 SExpr *apply(SExpr *op, SExpr *operands) {
         Frame *env;
+        SExpr *result;
 
         if (primitive(op))
                 return op->prim(operands);
         env = extend(cadr(op), operands, op->env);
         if (env == NULL)
                 return NULL;
-        return eval(caddr(op), env);
+        result = eval(caddr(op), env);
+        return result;
 }
 
 Frame *new_frame(Frame *parent) {
@@ -237,6 +240,24 @@ void print_frame(Frame *fr) {
                 print(en->value);
                 printf("\n");
         }
+}
+
+void free_frame(Frame *fr) {
+        int i;
+        Entry *en, *next;
+        SExpr *val;
+
+        for (i = 0; i < HSIZE; i++) {
+                for (en = fr->bindings[i]; en != NULL; en = next) {
+                        next = en->next;
+                        val = en->value;
+                        val->refs--;
+                        dealloc(val);
+                        free(en->key);
+                        free(en);
+                }
+        }
+        free(fr);
 }
 
 SExpr *prim_add(SExpr *args) {
@@ -290,13 +311,18 @@ SExpr *prim_cdr(SExpr *args) {
 }
 
 void init(void) {
-        insert(global.bindings, "+", &Add);
-        insert(global.bindings, "-", &Sub);
-        insert(global.bindings, "*", &Mult);
-        insert(global.bindings, "/", &Div);
-        insert(global.bindings, "car", &Car);
-        insert(global.bindings, "cdr", &Cdr);
-        insert(global.bindings, "cons", &Cons);
+        global = new_frame(NULL);
+        insert(global->bindings, "+", &Add);
+        insert(global->bindings, "-", &Sub);
+        insert(global->bindings, "*", &Mult);
+        insert(global->bindings, "/", &Div);
+        insert(global->bindings, "car", &Car);
+        insert(global->bindings, "cdr", &Cdr);
+        insert(global->bindings, "cons", &Cons);
+}
+
+void cleanup(void) {
+        free_frame(global);
 }
 
 SExpr *env_lookup(char *sym, Frame *env) {
