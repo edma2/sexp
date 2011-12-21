@@ -32,7 +32,7 @@ struct SExpr {
         };
         int type;
         int refs;
-        Frame *frame;
+        Frame *env;
 };
 
 extern char buf[BUFLEN];
@@ -46,6 +46,9 @@ extern SExpr Div;
 extern SExpr Cons;
 extern SExpr Car;
 extern SExpr Cdr;
+
+/** Debugging */
+void print_frame(Frame *fr);
 
 /** Memory */
 SExpr *make_atom(char *str);
@@ -71,13 +74,6 @@ SExpr *eval(SExpr *exp, Frame *env);
 SExpr *eval_list(SExpr *ls, Frame *env);
 SExpr *apply(SExpr *op, SExpr *operands);
 
-int numeric(char *s);
-int atomic(SExpr *exp);
-int pair(SExpr *exp);
-int empty(SExpr *exp);
-int primitive(SExpr *exp);
-int unfreeable(SExpr *exp);
-
 int is_tagged_list(SExpr *ls, char *tag);
 int is_number(SExpr *exp);
 int is_define(SExpr *exp);
@@ -86,7 +82,16 @@ int is_quoted(SExpr *exp);
 int is_lambda(SExpr *exp);
 int is_application(SExpr *exp);
 
+/** Attributes */
+int numeric(char *s);
+int atomic(SExpr *exp);
+int pair(SExpr *exp);
+int empty(SExpr *exp);
+int primitive(SExpr *exp);
+int unfreeable(SExpr *exp);
+
 /** Environment */
 void init(void);
 int env_bind(char *sym, SExpr *val, Frame *env);
 SExpr *env_lookup(char *sym, Frame *env);
+Frame *extend(SExpr *args, SExpr *params, Frame *env);

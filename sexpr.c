@@ -25,7 +25,7 @@ SExpr *make_atom(char *s) {
         }
         exp->type = TYPE_ATOM;
         exp->refs = 0;
-        exp->frame = NULL;
+        exp->env = NULL;
         return exp;
 }
 
@@ -41,7 +41,7 @@ SExpr *make_pair(SExpr *car, SExpr *cdr) {
         cdr(exp) = cdr;
         exp->type = TYPE_PAIR;
         exp->refs = 0;
-        exp->frame = NULL;
+        exp->env = NULL;
         return exp;
 }
 
@@ -144,10 +144,20 @@ SExpr *eval(SExpr *exp, Frame *env) {
         if (is_quoted(exp))
                 return cadr(exp);
         if (is_symbol(exp)) {
-                val = env_lookup(exp->atom, env);
-                if (val == NULL)
-                        fprintf(stderr, "Unknown symbol!\n");
+                for (; env != NULL; env = env->parent) {
+                        val = env_lookup(exp->atom, env);
+                        if (val != NULL)
+                                break;
+                }
+                if (env == NULL) {
+                        fprintf(stderr, "Unknown symbol: %s\n", exp->atom);
+                        return NULL;
+                }
                 return val;
+        }
+        if (is_lambda(exp)) {
+                exp->env = env;
+                return exp;
         }
         if (is_define(exp)) {
                 val = eval(caddr(exp), env);
@@ -178,9 +188,55 @@ SExpr *eval(SExpr *exp, Frame *env) {
 }
 
 SExpr *apply(SExpr *op, SExpr *operands) {
+        Frame *env;
+
         if (primitive(op))
                 return op->prim(operands);
-        return NULL;
+        env = extend(cadr(op), operands, op->env);
+        if (env == NULL)
+                return NULL;
+        return eval(caddr(op), env);
+}
+
+Frame *new_frame(Frame *parent) {
+        Frame *fr;
+        int i;
+
+        fr = malloc(sizeof(Frame));
+        if (fr == NULL)
+                return NULL;
+        for (i = 0; i < HSIZE; i++)
+                fr->bindings[i] = NULL;
+        fr->parent = parent;
+        return fr;
+}
+
+Frame *extend(SExpr *params, SExpr *args, Frame *env) {
+        Frame *fr;
+
+        fr = new_frame(env);
+        if (fr == NULL)
+                return NULL;
+        for (; args != &nil; args = cdr(args)) {
+                if (!env_bind(car(params)->atom, car(args), fr))
+                        break;
+                params = cdr(params);
+        }
+        return fr;
+}
+
+void print_frame(Frame *fr) {
+        int i;
+        Entry *en;
+
+        for (i = 0; i < HSIZE; i++) {
+                en = fr->bindings[i];
+                if (en == NULL)
+                        continue;
+                printf("%s: ", en->key);
+                print(en->value);
+                printf("\n");
+        }
 }
 
 SExpr *prim_add(SExpr *args) {
