@@ -3,7 +3,11 @@
 char buf[BUFLEN];
 Frame global = {.parent = NULL};
 SExpr nil = {.type = TYPE_NIL};
-SExpr prim_add = {.prim = _prim_add, .type = TYPE_PRIM};
+
+SExpr add = {.prim = prim_add, .type = TYPE_PRIM};
+SExpr sub = {.prim = prim_sub, .type = TYPE_PRIM};
+SExpr mult = {.prim = prim_mult, .type = TYPE_PRIM};
+SExpr divide = {.prim = prim_divide, .type = TYPE_PRIM};
 
 SExpr *make_atom(char *s) {
         SExpr *exp;
@@ -39,7 +43,7 @@ SExpr *make_pair(SExpr *car, SExpr *cdr) {
 }
 
 int immortal(SExpr *exp) {
-        return exp == &prim_add || exp == &nil;
+        return primitive(exp) || exp == &nil;
 }
 
 void dealloc(SExpr *exp) {
@@ -137,7 +141,7 @@ SExpr *eval(SExpr *exp, Frame *env) {
         if (is_quoted(exp))
                 return cadr(exp);
         if (is_symbol(exp)) {
-                val = env_lookup_symbol(exp->atom, env);
+                val = env_lookup(exp->atom, env);
                 if (val == NULL)
                         fprintf(stderr, "Unknown symbol!\n");
                 return val;
@@ -146,7 +150,7 @@ SExpr *eval(SExpr *exp, Frame *env) {
                 val = eval(caddr(exp), env);
                 if (val == NULL)
                         return NULL;
-                if (!env_bind_symbol(cadr(exp)->atom, val, env)) {
+                if (!env_bind(cadr(exp)->atom, val, env)) {
                         dealloc(val);
                         return NULL;
                 }
@@ -176,27 +180,59 @@ SExpr *apply(SExpr *op, SExpr *operands) {
         return NULL;
 }
 
-SExpr *_prim_add(SExpr *operands) {
+SExpr *prim_add(SExpr *args) {
         int sum;
 
-        for (sum = 0; !empty(operands); operands = cdr(operands))
-                sum += atoi(car(operands)->atom);
+        for (sum = 0; !empty(args); args = cdr(args))
+                sum += atoi(car(args)->atom);
         snprintf(buf, BUFLEN, "%d", sum);
         return make_atom(buf);
 }
 
-void init(void) {
-        insert(global.bindings, "+", &prim_add);
+SExpr *prim_sub(SExpr *args) {
+        int sum;
+
+        for (sum = 0; !empty(args); args = cdr(args))
+                sum -= atoi(car(args)->atom);
+        snprintf(buf, BUFLEN, "%d", sum);
+        return make_atom(buf);
 }
 
-SExpr *env_lookup_symbol(char *sym, Frame *env) {
+SExpr *prim_mult(SExpr *args) {
+        int prod;
+
+        for (prod = 1; !empty(args); args = cdr(args))
+                prod *= atoi(car(args)->atom);
+        snprintf(buf, BUFLEN, "%d", prod);
+        return make_atom(buf);
+}
+
+SExpr *prim_divide(SExpr *args) {
+        int quot;
+
+        quot = atoi(car(args)->atom);
+        args = cdr(args);
+        for (; !empty(args); args = cdr(args))
+                quot /= atoi(car(args)->atom);
+        snprintf(buf, BUFLEN, "%d", quot);
+        return make_atom(buf);
+}
+
+void init(void) {
+        insert(global.bindings, "+", &add);
+        insert(global.bindings, "-", &sub);
+        insert(global.bindings, "*", &mult);
+        insert(global.bindings, "/", &divide);
+}
+
+SExpr *env_lookup(char *sym, Frame *env) {
         Entry *en;
 
         en = find(env->bindings, sym);
         return en == NULL ? NULL : en->value;
 }
 
-int env_bind_symbol(char *sym, SExpr *val, Frame *env) {
+int env_bind(char *sym, SExpr *val, Frame *env) {
         Entry *en;
         SExpr *old;
 

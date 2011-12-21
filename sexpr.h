@@ -30,16 +30,19 @@ struct SExpr {
                 SExpr *pair[2];
                 SExpr *(*prim)(SExpr *);
         };
-        int type;       /* TYPE_PAIR, TYPE_ATOM, TYPE_NIL */
-        int refs;       /* # of internal references */
-        Frame *frame;   /* procs only */
+        int type;
+        int refs;
+        Frame *frame;
 };
 
 extern char buf[BUFLEN];
 extern Frame global;
 extern SExpr nil;
 
-extern SExpr prim_add;
+extern SExpr add;
+extern SExpr sub;
+extern SExpr mult;
+extern SExpr divide;
 
 /** Memory */
 SExpr *make_atom(char *str);
@@ -51,12 +54,16 @@ SExpr *parse(FILE *f, int depth);
 int read_token(FILE *f);
 void print(SExpr *exp);
 
+/** Primitives */
+SExpr *prim_add(SExpr *args);
+SExpr *prim_sub(SExpr *args);
+SExpr *prim_mult(SExpr *args);
+SExpr *prim_divide(SExpr *args);
+
 /** Eval */
 SExpr *eval(SExpr *exp, Frame *env);
 SExpr *eval_list(SExpr *ls, Frame *env);
 SExpr *apply(SExpr *op, SExpr *operands);
-
-SExpr *_prim_add(SExpr *operands);
 
 int numeric(char *s);
 int atomic(SExpr *exp);
@@ -75,5 +82,5 @@ int is_application(SExpr *exp);
 
 /** Environment */
 void init(void);
-int env_bind_symbol(char *sym, SExpr *val, Frame *env);
-SExpr *env_lookup_symbol(char *sym, Frame *env);
+int env_bind(char *sym, SExpr *val, Frame *env);
+SExpr *env_lookup(char *sym, Frame *env);
