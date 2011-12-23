@@ -7,7 +7,7 @@
 //{{{
 #define BUFLEN 1024
 #define BUCKETS 256
-#define MAXNODES 12
+#define MAXNODES 256
 
 #define isreserved(c) (c == ')' || c == '(' || c == '\'')
 
