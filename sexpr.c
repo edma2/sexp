@@ -7,7 +7,7 @@
 //{{{
 #define BUFLEN 1024
 #define BUCKETS 256
-#define MAXNODES 4096
+#define MAXNODES 12
 
 #define isreserved(c) (c == ')' || c == '(' || c == '\'')
 
@@ -529,6 +529,10 @@ void *alloc(int type) {
         void *data;
         Node *n;
 
+        if (MaxIndex == MAXNODES-1) {
+                fprintf(stderr, "Out of nodes!\n");
+                return NULL;
+        }
         if (type == FRAME)
                 data = calloc(1, sizeof(Frame));
         else
@@ -630,6 +634,9 @@ int main(void) {
         init();
         eof = 0;
         while (!eof) {
+                mark();
+                sweep();
+                compact();
                 input = parse(stdin, 0);
                 if (input == NULL) {
                         if (!eof)
@@ -643,9 +650,6 @@ int main(void) {
                 }
                 print(result);
                 printf("\n");
-                mark();
-                sweep();
-                compact();
         }
         sweep();
         return 0;
