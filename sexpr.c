@@ -64,6 +64,7 @@ struct Frame {
 void *alloc(int type);
 SExpr *apply(SExpr *op, SExpr *operands);
 int atomic(SExpr *exp);
+void bind_lambda(SExpr *exp, Frame *env);
 int bound_lambda(SExpr *exp);
 void compact(void);
 int compound(SExpr *exp);
@@ -225,7 +226,7 @@ SExpr *eval(SExpr *exp, Frame *env) {
                 return val;
         }
         if (is_lambda(exp)) {
-                exp->env = env;
+                bind_lambda(exp, env);
                 return exp;
         }
         if (is_define(exp)) {
@@ -555,6 +556,10 @@ void mark_sexpr(SExpr *exp, Frame *env) {
 
 int bound_lambda(SExpr *exp) {
         return is_lambda(exp) && exp->env != NULL;
+}
+
+void bind_lambda(SExpr *exp, Frame *env) {
+        exp->env = env;
 }
 
 void mark_frame(Frame *frame) {
