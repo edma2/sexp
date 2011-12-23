@@ -631,11 +631,16 @@ int main(void) {
         eof = 0;
         while (!eof) {
                 input = parse(stdin, 0);
-                if (input == NULL)
+                if (input == NULL) {
+                        if (!eof)
+                                fprintf(stderr, "Parse error!\n");
                         continue;
+                }
                 result = eval(input, global);
-                if (result == NULL)
+                if (result == NULL) {
+                        fprintf(stderr, "Eval error!\n");
                         continue;
+                }
                 print(result);
                 printf("\n");
                 mark();
