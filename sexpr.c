@@ -1,72 +1,178 @@
-#include "sexpr.h"
+#include <stdio.h>
+#include <ctype.h>
+#include <stdlib.h>
+#include <string.h>
 
-char buf[BUFLEN];
-Frame *global;
-SExpr nil = {.type = TYPE_NIL};
-int eof;
+/* Macros */
+//{{{
+#define BUFLEN 1024
+#define BUCKETS 256
+#define MAXNODES 4096
 
-SExpr Add = {.prim = prim_add, .type = TYPE_PRIM};
-SExpr Sub = {.prim = prim_sub, .type = TYPE_PRIM};
-SExpr Mult = {.prim = prim_mult, .type = TYPE_PRIM};
-SExpr Div = {.prim = prim_div, .type = TYPE_PRIM};
-SExpr Car = {.prim = prim_cdr, .type = TYPE_PRIM};
-SExpr Cdr = {.prim = prim_car, .type = TYPE_PRIM};
-SExpr Cons = {.prim = prim_cons, .type = TYPE_PRIM};
+#define isreserved(c) (c == ')' || c == '(' || c == '\'')
+
+#define car(p) (p->pair[0])
+#define cdr(p) (p->pair[1])
+#define cadr(p) (car(cdr(p)))
+#define caddr(p) (car(cdr(cdr(p))))
+
+enum category { QUOTE, LPAREN, RPAREN, STR, END };
+//}}}
+
+/* Data structures */
+//{{{
+/* S-expressions */
+typedef struct SExpr SExpr;
+/* Hash table buckets */
+typedef struct Entry Entry;
+/* Garbage collection nodes */
+typedef struct Node Node;
+/* Call frames */
+typedef struct Frame Frame;
+
+struct SExpr {
+        union {
+                char *atom;
+                SExpr *pair[2];
+                SExpr *(*prim)(SExpr *);
+        };
+        enum {ATOM, PAIR, NIL, PRIM} type;
+        Frame *env;
+        int live;
+};
+
+struct Entry {
+        char *key;
+        void *value;
+        Entry *next;
+};
+
+struct Node {
+        void *data;
+        enum {FRAME, SEXPR} type;
+};
+
+struct Frame {
+        Frame *parent;
+        Entry *bindings[BUCKETS];
+        int live;
+};
+//}}}
+
+/* Function declarations */
+//{{{
+void *alloc(int type);
+SExpr *apply(SExpr *op, SExpr *operands);
+int atomic(SExpr *exp);
+int bound_lambda(SExpr *exp);
+void compact(void);
+int compound(SExpr *exp);
+SExpr *cons(SExpr *car, SExpr *cdr);
+int data_alive(Node *n);
+void data_free(Node *n);
+void data_unmark(Node *n);
+int empty(SExpr *exp);
+int env_bind(char *sym, SExpr *val, Frame *env);
+SExpr *env_lookup(char *sym, Frame *env);
+SExpr *eval_list(SExpr *ls, Frame *env);
+SExpr *eval(SExpr *exp, Frame *env);
+Frame *extend(SExpr *args, SExpr *params, Frame *env);
+Entry *find(Entry *hashtab[], char *key);
+void free_frame(Frame *frame);
+void free_sexpr(SExpr *exp);
+int hash(char *s);
+void init(void);
+Entry *insert(Entry *hashtab[], char *key, void *value);
+int is_application(SExpr *exp);
+int is_define(SExpr *exp);
+int is_lambda(SExpr *exp);
+int is_number(SExpr *exp);
+int is_quoted(SExpr *exp);
+int is_symbol(SExpr *exp);
+int is_tagged_list(SExpr *ls, char *tag);
+SExpr *make_atom(char *str);
+SExpr *make_pair(SExpr *car, SExpr *cdr);
+SExpr *make_prim(SExpr *(*prim)(SExpr *));
+void mark(void);
+void mark_frame(Frame *frame);
+void mark_sexpr(SExpr *exp, Frame *env);
+Frame *new_frame(Frame *parent);
+int numeric(char *s);
+SExpr *parse(FILE *f, int depth);
+SExpr *prim_add(SExpr *args);
+SExpr *prim_sub(SExpr *args);
+SExpr *prim_mult(SExpr *args);
+SExpr *prim_div(SExpr *args);
+SExpr *prim_cons(SExpr *args);
+SExpr *prim_cdr(SExpr *args);
+SExpr *prim_car(SExpr *args);
+void print(SExpr *exp);
+int read_token(FILE *f);
+int primitive(SExpr *exp);
+void sweep(void);
+//}}}
+
+/* Globals */
+//{{{
+char    buf[BUFLEN];            /* Token buffer */
+int     eof;                    /* EOF flag */
+Frame   global;                 /* Global environment */
+Node    Nodes[MAXNODES];        /* Heap references */
+int     MaxIndex = 0;           /* Next free Node */
+SExpr   nil = {.type = NIL};    /* Empty list */
+//}}}
+
+/* Function definitions */
+//{{{
+void mark(void) {
+        mark_frame(&global);
+}
 
 SExpr *make_atom(char *s) {
         SExpr *exp;
 
-        exp = malloc(sizeof(struct SExpr));
+        exp = alloc(SEXPR);
         if (exp == NULL)
                 return NULL;
         exp->atom = strdup(s);
-        if (exp->atom == NULL) {
-                free(exp);
+        if (exp->atom == NULL)
                 return NULL;
-        }
-        exp->type = TYPE_ATOM;
-        exp->refs = 0;
-        exp->env = NULL;
+        exp->type = ATOM;
         return exp;
 }
 
 SExpr *make_pair(SExpr *car, SExpr *cdr) {
         SExpr *exp;
 
-        exp = malloc(sizeof(struct SExpr));
+        exp = alloc(SEXPR);
         if (exp == NULL)
                 return NULL;
-        car->refs++;
-        cdr->refs++;
         car(exp) = car;
         cdr(exp) = cdr;
-        exp->type = TYPE_PAIR;
-        exp->refs = 0;
-        exp->env = NULL;
+        exp->type = PAIR;
         return exp;
 }
 
-int unfreeable(SExpr *exp) {
-        return primitive(exp) || exp == &nil;
+SExpr *make_prim(SExpr *(*prim)(SExpr *)) {
+        SExpr *exp;
+
+        exp = alloc(SEXPR);
+        if (exp == NULL)
+                return NULL;
+        exp->prim = prim;
+        exp->type = PRIM;
+        return exp;
 }
 
-void dealloc(SExpr *exp) {
-        if (unfreeable(exp) || exp->refs > 0)
-                return;
-        if (atomic(exp)) {
-                free(exp->atom);
-        } else {
-                car(exp)->refs--;
-                dealloc(car(exp));
-                cdr(exp)->refs--;
-                dealloc(cdr(exp));
-        }
-        free(exp);
+SExpr *cons(SExpr *car, SExpr *cdr) {
+        if (car == NULL || cdr == NULL)
+                return NULL;
+        return make_pair(car, cdr);
 }
 
 SExpr *parse(FILE *f, int depth) {
         int category;
-        SExpr *car = NULL, *cdr, *ls;
+        SExpr *car, *cdr;
 
         category = read_token(f);
         if (category == LPAREN) {
@@ -74,65 +180,27 @@ SExpr *parse(FILE *f, int depth) {
         } else if (category == RPAREN) {
                 return depth ? &nil : NULL;
         } else if (category == QUOTE) {
-                car = make_atom("quote");
-                if (car == NULL)
-                        return NULL;
-                cdr = parse(f, 0);
-                if (cdr == NULL) {
-                        dealloc(car);
-                        return NULL;
-                }
-                ls = cons(cdr, &nil);
-                if (ls == NULL) {
-                        dealloc(car);
-                        dealloc(cdr);
-                        return NULL;
-                }
-                cdr = cons(car, ls);
-                if (cdr == NULL) {
-                        dealloc(car);
-                        dealloc(ls);
-                }
-                car = cdr;
-        } else if (category == ATOM) {
+                car = cons(make_atom("quote"), cons(parse(f, 0), &nil));
+        } else if (category == STR) {
                 car = make_atom(buf);
-        } else if (category == END) {
+        } else {
                 eof = 1;
-        }
-        if (!depth || car == NULL)
-                return car;
-        cdr = parse(f, depth);
-        if (cdr == NULL) {
-                dealloc(car);
                 return NULL;
         }
-        ls = cons(car, cdr);
-        if (ls == NULL) {
-                dealloc(car);
-                dealloc(cdr);
-        }
-        return ls;
+        if (!depth)
+                return car;
+        cdr = parse(f, depth);
+        return cons(car, cdr);
 }
 
 SExpr *eval_list(SExpr *ls, Frame *env) {
-        SExpr *car, *cdr, *exps;
+        SExpr *car, *cdr;
 
         if (empty(ls))
                 return &nil;
         car = eval(car(ls), env);
-        if (car == NULL)
-                return NULL;
         cdr = eval_list(cdr(ls), env);
-        if (cdr == NULL) {
-                dealloc(car);
-                return NULL;
-        }
-        exps = cons(car, cdr);
-        if (exps == NULL) {
-                dealloc(car);
-                dealloc(cdr);
-        }
-        return exps;
+        return cons(car, cdr);
 }
 
 SExpr *eval(SExpr *exp, Frame *env) {
@@ -164,25 +232,16 @@ SExpr *eval(SExpr *exp, Frame *env) {
                 val = eval(caddr(exp), env);
                 if (val == NULL)
                         return NULL;
-                if (!env_bind(cadr(exp)->atom, val, env)) {
-                        dealloc(val);
+                if (!env_bind(cadr(exp)->atom, val, env))
                         return NULL;
-                }
                 return &nil;
         }
         if (is_application(exp)) {
                 op = eval(car(exp), env);
-                if (op == NULL)
-                        return NULL;
                 operands = eval_list(cdr(exp), env);
-                if (operands == NULL) {
-                        dealloc(op);
+                if (op == NULL || operands == NULL)
                         return NULL;
-                }
-                val = apply(op, operands);
-                dealloc(op);
-                dealloc(operands);
-                return val;
+                return apply(op, operands);
         }
         fprintf(stderr, "Unknown expression!\n");
         return NULL;
@@ -202,62 +261,50 @@ SExpr *apply(SExpr *op, SExpr *operands) {
 }
 
 Frame *new_frame(Frame *parent) {
-        Frame *fr;
-        int i;
+        Frame *frame;
 
-        fr = malloc(sizeof(Frame));
-        if (fr == NULL)
+        frame = alloc(FRAME);
+        if (frame == NULL)
                 return NULL;
-        for (i = 0; i < HSIZE; i++)
-                fr->bindings[i] = NULL;
-        fr->parent = parent;
-        return fr;
+        frame->parent = parent;
+        return frame;
 }
 
 Frame *extend(SExpr *params, SExpr *args, Frame *env) {
-        Frame *fr;
+        Frame *frame;
 
-        fr = new_frame(env);
-        if (fr == NULL)
+        frame = new_frame(env);
+        if (frame == NULL)
                 return NULL;
         for (; args != &nil; args = cdr(args)) {
-                if (!env_bind(car(params)->atom, car(args), fr))
+                if (!env_bind(car(params)->atom, car(args), frame))
                         break;
                 params = cdr(params);
         }
-        return fr;
+        return frame;
 }
 
-void print_frame(Frame *fr) {
-        int i;
-        Entry *en;
-
-        for (i = 0; i < HSIZE; i++) {
-                en = fr->bindings[i];
-                if (en == NULL)
-                        continue;
-                printf("%s: ", en->key);
-                print(en->value);
-                printf("\n");
-        }
-}
-
-void free_frame(Frame *fr) {
+void free_frame(Frame *frame) {
         int i;
         Entry *en, *next;
-        SExpr *val;
 
-        for (i = 0; i < HSIZE; i++) {
-                for (en = fr->bindings[i]; en != NULL; en = next) {
+        for (i = 0; i < BUCKETS; i++) {
+                for (en = frame->bindings[i]; en != NULL; en = next) {
                         next = en->next;
-                        val = en->value;
-                        val->refs--;
-                        dealloc(val);
                         free(en->key);
                         free(en);
                 }
         }
-        free(fr);
+        if (frame != &global)
+                free(frame);
+}
+
+void free_sexpr(SExpr *exp) {
+        if (exp->type == NIL)
+                return;
+        if (exp->type == ATOM)
+                free(exp->atom);
+        free(exp);
 }
 
 SExpr *prim_add(SExpr *args) {
@@ -303,26 +350,21 @@ SExpr *prim_cons(SExpr *args) {
 }
 
 SExpr *prim_car(SExpr *args) {
-        return car(args);
+        return car(car(args));
 }
 
 SExpr *prim_cdr(SExpr *args) {
-        return cdr(args);
+        return cdr(car(args));
 }
 
 void init(void) {
-        global = new_frame(NULL);
-        insert(global->bindings, "+", &Add);
-        insert(global->bindings, "-", &Sub);
-        insert(global->bindings, "*", &Mult);
-        insert(global->bindings, "/", &Div);
-        insert(global->bindings, "car", &Car);
-        insert(global->bindings, "cdr", &Cdr);
-        insert(global->bindings, "cons", &Cons);
-}
-
-void cleanup(void) {
-        free_frame(global);
+        insert(global.bindings, "+", make_prim(prim_add));
+        insert(global.bindings, "-", make_prim(prim_sub));
+        insert(global.bindings, "*", make_prim(prim_mult));
+        insert(global.bindings, "/", make_prim(prim_div));
+        insert(global.bindings, "cons", make_prim(prim_cons));
+        insert(global.bindings, "car", make_prim(prim_car));
+        insert(global.bindings, "cdr", make_prim(prim_cdr));
 }
 
 SExpr *env_lookup(char *sym, Frame *env) {
@@ -334,35 +376,29 @@ SExpr *env_lookup(char *sym, Frame *env) {
 
 int env_bind(char *sym, SExpr *val, Frame *env) {
         Entry *en;
-        SExpr *old;
 
         en = find(env->bindings, sym);
-        if (en == NULL) {
+        if (en == NULL)
                 en = insert(env->bindings, sym, val);
-        } else {
-                old = en->value;
-                old->refs--;
-                dealloc(old);
+        else
                 en->value = val;
-        }
-        val->refs++;
         return en != NULL;
 }
 
 int atomic(SExpr *exp) {
-        return exp->type == TYPE_ATOM;
+        return exp->type == ATOM;
 }
 
 int empty(SExpr *exp) {
-        return exp->type == TYPE_NIL;
+        return exp->type == NIL;
 }
 
-int pair(SExpr *exp) {
-        return exp->type == TYPE_PAIR;
+int compound(SExpr *exp) {
+        return exp->type == PAIR;
 }
 
 int primitive(SExpr *exp) {
-        return exp->type == TYPE_PRIM;
+        return exp->type == PRIM;
 }
 
 int numeric(char *s) {
@@ -374,7 +410,7 @@ int numeric(char *s) {
 }
 
 int is_application(SExpr *exp) {
-        return pair(exp);
+        return compound(exp);
 }
 
 int is_number(SExpr *exp) {
@@ -398,7 +434,7 @@ int is_lambda(SExpr *exp) {
 }
 
 int is_tagged_list(SExpr *ls, char *tag) {
-        return pair(ls) && atomic(car(ls)) && !strcmp(car(ls)->atom, tag);
+        return compound(ls) && atomic(car(ls)) && !strcmp(car(ls)->atom, tag);
 }
 
 void print(SExpr *exp) {
@@ -406,14 +442,14 @@ void print(SExpr *exp) {
                 printf("%s", exp->atom);
         } else if (empty(exp)) {
                 printf("()");
-        } else if (pair(exp)) {
+        } else if (compound(exp)) {
                 printf("(");
                 print(car(exp));
                 printf(".");
                 print(cdr(exp));
                 printf(")");
         } else if (primitive(exp)) {
-                printf("PRIMITIVE");
+                printf("<built-in>");
         }
 }
 
@@ -446,5 +482,160 @@ int read_token(FILE *f) {
         buf[i+1] = '\0';
         if (isreserved(c))
                 ungetc(c, f);
-        return ATOM;
+        return STR;
+}
+
+int hash(char *s) {
+        int h;
+
+        for (h = 0; *s != '\0'; s++)
+                h += (h * 37 + *s);
+        return h % BUCKETS;
+}
+
+Entry *find(Entry *hashtab[], char *key) {
+        int h;
+        Entry *ep;
+
+        h = hash(key);
+        for (ep = hashtab[h]; ep != NULL; ep = ep->next) {
+                if (!strcmp(key, ep->key))
+                        break;
+        }
+        return ep;
+}
+
+Entry *insert(Entry *hashtab[], char *key, void *value) {
+        int h;
+        Entry *e;
+
+        e = malloc(sizeof(Entry));
+        if (e == NULL)
+                return NULL;
+        e->key = strndup(key, strlen(key));
+        if (e->key == NULL) {
+                free(e);
+                return NULL;
+        }
+        h = hash(key);
+        e->value = value;
+        e->next = hashtab[h];
+        hashtab[h] = e;
+        return e;
+}
+
+void *alloc(int type) {
+        void *data;
+        Node *n;
+
+        if (type == FRAME)
+                data = calloc(1, sizeof(Frame));
+        else
+                data = calloc(1, sizeof(SExpr));
+        if (data == NULL)
+                return NULL;
+        n = &Nodes[MaxIndex++];
+        n->data = data;
+        n->type = type;
+        return data;
+}
+
+void mark_sexpr(SExpr *exp, Frame *env) {
+        exp->live = 1;
+        if (exp->type == PAIR) {
+                mark_sexpr(car(exp), env);
+                mark_sexpr(cdr(exp), env);
+                if (bound_lambda(exp)) {
+                        /* Avoids circular loops */
+                        if (exp->env == env)
+                                return;
+                        mark_frame(exp->env);
+                }
+        }
+}
+
+int bound_lambda(SExpr *exp) {
+        return is_lambda(exp) && exp->env != NULL;
+}
+
+void mark_frame(Frame *frame) {
+        int i;
+        Entry *en;
+
+        for (i = 0; i < BUCKETS; i++) {
+                for (en = frame->bindings[i]; en != NULL; en = en->next)
+                        mark_sexpr(en->value, frame);
+        }
+}
+
+void sweep(void) {
+        int i;
+        Node *n;
+
+        for (i = 0; i < MaxIndex; i++) {
+                n = &Nodes[i];
+                if (data_alive(n)) {
+                        data_unmark(n);
+                } else {
+                        data_free(n);
+                        n->data = NULL;
+                }
+        }
+}
+
+void compact(void) {
+        Node tmp[MaxIndex];
+        int i, j = 0;
+
+        for (i = 0; i < MaxIndex; i++) {
+                if (Nodes[i].data != NULL)
+                        tmp[j++] = Nodes[i];
+        }
+        for (i = 0; i < j; i++)
+                Nodes[i] = tmp[i];
+        MaxIndex = j;
+}
+
+int data_alive(Node *n) {
+        if (n->type == FRAME)
+                return ((Frame *)n->data)->live;
+        return ((SExpr *)n->data)->live;
+}
+
+void data_unmark(Node *n) {
+        if (n->type == FRAME)
+                ((Frame *)n->data)->live = 0;
+        else
+                ((SExpr *)n->data)->live = 0;
+}
+
+void data_free(Node *n) {
+        if (n->type == FRAME)
+                free_frame(n->data);
+        else
+                free_sexpr(n->data);
+}
+//}}}
+
+int main(void) {
+        SExpr *input, *result;
+
+        init();
+        eof = 0;
+        while (!eof) {
+                input = parse(stdin, 0);
+                if (input == NULL)
+                        continue;
+                result = eval(input, &global);
+                if (result == NULL)
+                        continue;
+                print(result);
+                printf("\n");
+                mark();
+                sweep();
+                compact();
+        }
+        sweep();
+        free_frame(&global);
+        return 0;
 }

@@ -1,32 +1,22 @@
+#ifndef SEXPR_H
+#define SEXPR_H
 #include "sexpr.h"
-
-void repl(void);
+#endif
 
 int main(void) {
-        init();
-        repl();
-        cleanup();
-        return 0;
-}
-
-void repl(void) {
         SExpr *input, *result;
 
+        init();
         eof = 0;
         while (!eof) {
                 input = parse(stdin, 0);
                 if (input == NULL)
                         continue;
-                result = eval(input, global);
-                if (result == NULL) {
-                        dealloc(input);
+                result = eval(input, &global);
+                if (result == NULL)
                         continue;
-                }
-                result->refs++;
                 print(result);
                 printf("\n");
-                dealloc(input);
-                result->refs--;
-                dealloc(result);
         }
+        return 0;
 }

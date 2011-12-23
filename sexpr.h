@@ -2,13 +2,21 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifndef HASH_H
+#define HASH_H
 #include "hash.h"
+#endif
+
+#ifndef GC_H
+#define GC_H
+#include "gc.h"
+#endif
 
 #define BUFLEN 1024
 #define SIZE 256
 #define isreserved(c) (c == ')' || c == '(' || c == '\'')
 
-#define cons(car, cdr) (make_pair(car, cdr))
 #define car(p) (p->pair[0])
 #define cdr(p) (p->pair[1])
 #define cadr(p) (car(cdr(p)))
@@ -21,6 +29,7 @@ typedef struct Frame Frame;
 struct Frame {
         Frame *parent;
         Entry *bindings[SIZE];
+        int live;
 };
 
 typedef struct SExpr SExpr;
@@ -31,30 +40,20 @@ struct SExpr {
                 SExpr *(*prim)(SExpr *);
         };
         int type;
-        int refs;
+        int live;
         Frame *env;
 };
 
 extern char buf[BUFLEN];
-extern Frame *global;
+extern Frame global;
 extern SExpr nil;
 extern int eof;
-
-extern SExpr Add;
-extern SExpr Sub;
-extern SExpr Mult;
-extern SExpr Div;
-extern SExpr Cons;
-extern SExpr Car;
-extern SExpr Cdr;
-
-/** Debugging */
-void print_frame(Frame *fr);
 
 /** Memory */
 SExpr *make_atom(char *str);
 SExpr *make_pair(SExpr *car, SExpr *cdr);
-void dealloc(SExpr *exp);
+SExpr *make_prim(SExpr *(*prim)(SExpr *));
+SExpr *cons(SExpr *car, SExpr *cdr);
 
 /** I/O */
 SExpr *parse(FILE *f, int depth);
@@ -76,7 +75,6 @@ SExpr *eval_list(SExpr *ls, Frame *env);
 SExpr *apply(SExpr *op, SExpr *operands);
 
 void init(void);
-void cleanup(void);
 
 int is_tagged_list(SExpr *ls, char *tag);
 int is_number(SExpr *exp);
@@ -89,10 +87,9 @@ int is_application(SExpr *exp);
 /** Attributes */
 int numeric(char *s);
 int atomic(SExpr *exp);
-int pair(SExpr *exp);
+int compound(SExpr *exp);
 int empty(SExpr *exp);
 int primitive(SExpr *exp);
-int unfreeable(SExpr *exp);
 
 /** Environment */
 int env_bind(char *sym, SExpr *val, Frame *env);
@@ -100,3 +97,4 @@ SExpr *env_lookup(char *sym, Frame *env);
 Frame *extend(SExpr *args, SExpr *params, Frame *env);
 Frame *new_frame(Frame *parent);
 void free_frame(Frame *fr);
+void free_sexpr(SExpr *exp);
