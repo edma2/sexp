@@ -116,7 +116,7 @@ void sweep(void);
 //{{{
 char    buf[BUFLEN];            /* Token buffer */
 int     eof;                    /* EOF flag */
-Frame   global;                 /* Global environment */
+Frame   *global;                /* Global environment */
 Node    Nodes[MAXNODES];        /* Heap references */
 int     MaxIndex = 0;           /* Next free Node */
 SExpr   nil = {.type = NIL};    /* Empty list */
@@ -125,7 +125,7 @@ SExpr   nil = {.type = NIL};    /* Empty list */
 /* Function definitions */
 //{{{
 void mark(void) {
-        mark_frame(&global);
+        mark_frame(global);
 }
 
 SExpr *make_atom(char *s) {
@@ -295,8 +295,7 @@ void free_frame(Frame *frame) {
                         free(en);
                 }
         }
-        if (frame != &global)
-                free(frame);
+        free(frame);
 }
 
 void free_sexpr(SExpr *exp) {
@@ -358,13 +357,14 @@ SExpr *prim_cdr(SExpr *args) {
 }
 
 void init(void) {
-        insert(global.bindings, "+", make_prim(prim_add));
-        insert(global.bindings, "-", make_prim(prim_sub));
-        insert(global.bindings, "*", make_prim(prim_mult));
-        insert(global.bindings, "/", make_prim(prim_div));
-        insert(global.bindings, "cons", make_prim(prim_cons));
-        insert(global.bindings, "car", make_prim(prim_car));
-        insert(global.bindings, "cdr", make_prim(prim_cdr));
+        global = new_frame(NULL);
+        insert(global->bindings, "+", make_prim(prim_add));
+        insert(global->bindings, "-", make_prim(prim_sub));
+        insert(global->bindings, "*", make_prim(prim_mult));
+        insert(global->bindings, "/", make_prim(prim_div));
+        insert(global->bindings, "cons", make_prim(prim_cons));
+        insert(global->bindings, "car", make_prim(prim_car));
+        insert(global->bindings, "cdr", make_prim(prim_cdr));
 }
 
 SExpr *env_lookup(char *sym, Frame *env) {
@@ -541,16 +541,15 @@ void *alloc(int type) {
 }
 
 void mark_sexpr(SExpr *exp, Frame *env) {
+        /* Avoids circular traversals */
+        if (exp->live)
+                return;
         exp->live = 1;
         if (exp->type == PAIR) {
                 mark_sexpr(car(exp), env);
                 mark_sexpr(cdr(exp), env);
-                if (bound_lambda(exp)) {
-                        /* Avoids circular loops */
-                        if (exp->env == env)
-                                return;
+                if (bound_lambda(exp))
                         mark_frame(exp->env);
-                }
         }
 }
 
@@ -562,6 +561,9 @@ void mark_frame(Frame *frame) {
         int i;
         Entry *en;
 
+        if (frame->live)
+                return;
+        frame->live = 1;
         for (i = 0; i < BUCKETS; i++) {
                 for (en = frame->bindings[i]; en != NULL; en = en->next)
                         mark_sexpr(en->value, frame);
@@ -626,7 +628,7 @@ int main(void) {
                 input = parse(stdin, 0);
                 if (input == NULL)
                         continue;
-                result = eval(input, &global);
+                result = eval(input, global);
                 if (result == NULL)
                         continue;
                 print(result);
@@ -636,6 +638,5 @@ int main(void) {
                 compact();
         }
         sweep();
-        free_frame(&global);
         return 0;
 }
