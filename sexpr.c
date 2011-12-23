@@ -81,6 +81,7 @@ Frame *extend(SExpr *args, SExpr *params, Frame *env);
 Entry *find(Entry *hashtab[], char *key);
 void free_frame(Frame *frame);
 void free_sexpr(SExpr *exp);
+void gc(void);
 int hash(char *s);
 void init(void);
 Entry *insert(Entry *hashtab[], char *key, void *value);
@@ -116,7 +117,7 @@ void sweep(void);
 /* Globals */
 //{{{
 char    buf[BUFLEN];            /* Token buffer */
-int     eof;                    /* EOF flag */
+int     eof = 0;                    /* EOF flag */
 Frame   *global;                /* Global environment */
 Node    Nodes[MAXNODES];        /* Heap references */
 int     MaxIndex = 0;           /* Next free Node */
@@ -127,6 +128,12 @@ SExpr   nil = {.type = NIL};    /* Empty list */
 //{{{
 void mark(void) {
         mark_frame(global);
+}
+
+void gc(void) {
+        mark();
+        sweep();
+        compact();
 }
 
 SExpr *make_atom(char *s) {
@@ -176,18 +183,17 @@ SExpr *parse(FILE *f, int depth) {
         SExpr *car, *cdr;
 
         category = read_token(f);
-        if (category == LPAREN) {
-                car = parse(f, depth+1);
-        } else if (category == RPAREN) {
-                return depth ? &nil : NULL;
-        } else if (category == QUOTE) {
-                car = cons(make_atom("quote"), cons(parse(f, 0), &nil));
-        } else if (category == STR) {
-                car = make_atom(buf);
-        } else {
-                eof = 1;
+        eof = (category == END);
+        if (eof)
                 return NULL;
-        }
+        if (category == LPAREN)
+                car = parse(f, depth+1);
+        else if (category == RPAREN)
+                return depth ? &nil : NULL;
+        else if (category == QUOTE)
+                car = cons(make_atom("quote"), cons(parse(f, 0), &nil));
+        else if (category == STR)
+                car = make_atom(buf);
         if (!depth)
                 return car;
         cdr = parse(f, depth);
@@ -632,24 +638,22 @@ int main(void) {
         SExpr *input, *result;
 
         init();
-        eof = 0;
         while (!eof) {
-                mark();
-                sweep();
-                compact();
                 input = parse(stdin, 0);
-                if (input == NULL) {
-                        if (!eof)
-                                fprintf(stderr, "Parse error!\n");
-                        continue;
+                if (input != NULL) {
+                        result = eval(input, global);
+                        if (result != NULL) {
+                                print(result);
+                                printf("\n");
+                        } else {
+                                fprintf(stderr, "Eval error!\n");
+                        }
+                } else {
+                        if (eof)
+                                break;
+                        fprintf(stderr, "Parse error!\n");
                 }
-                result = eval(input, global);
-                if (result == NULL) {
-                        fprintf(stderr, "Eval error!\n");
-                        continue;
-                }
-                print(result);
-                printf("\n");
+                gc();
         }
         sweep();
         return 0;
