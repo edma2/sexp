@@ -7,7 +7,6 @@
 //{{{
 #define BUFLEN 1024
 #define BUCKETS 256
-#define MAXNODES 256
 
 #define isreserved(c) (c == ')' || c == '(' || c == '\'')
 
@@ -117,10 +116,10 @@ void sweep(void);
 /* Globals */
 //{{{
 char    buf[BUFLEN];            /* Token buffer */
-int     eof = 0;                    /* EOF flag */
+int     eof = 0;                /* EOF flag */
 Frame   *global;                /* Global environment */
 Node    Nodes[MAXNODES];        /* Heap references */
-int     MaxIndex = 0;           /* Next free Node */
+int     next_free_node = 0;     /* Next free Node */
 SExpr   nil = {.type = NIL};    /* Empty list */
 //}}}
 
@@ -192,7 +191,7 @@ SExpr *parse(FILE *f, int depth) {
                 return depth ? &nil : NULL;
         else if (category == QUOTE)
                 car = cons(make_atom("quote"), cons(parse(f, 0), &nil));
-        else if (category == STR)
+        else
                 car = make_atom(buf);
         if (!depth)
                 return car;
@@ -535,17 +534,15 @@ void *alloc(int type) {
         void *data;
         Node *n;
 
-        if (MaxIndex == MAXNODES-1) {
-                fprintf(stderr, "Out of nodes!\n");
+        if (next_free_node == MAXNODES)
                 return NULL;
-        }
         if (type == FRAME)
                 data = calloc(1, sizeof(Frame));
         else
                 data = calloc(1, sizeof(SExpr));
         if (data == NULL)
                 return NULL;
-        n = &Nodes[MaxIndex++];
+        n = &Nodes[next_free_node++];
         n->data = data;
         n->type = type;
         return data;
@@ -589,7 +586,7 @@ void sweep(void) {
         int i;
         Node *n;
 
-        for (i = 0; i < MaxIndex; i++) {
+        for (i = 0; i < next_free_node; i++) {
                 n = &Nodes[i];
                 if (data_alive(n)) {
                         data_unmark(n);
@@ -601,16 +598,16 @@ void sweep(void) {
 }
 
 void compact(void) {
-        Node tmp[MaxIndex];
+        Node tmp[next_free_node];
         int i, j = 0;
 
-        for (i = 0; i < MaxIndex; i++) {
+        for (i = 0; i < next_free_node; i++) {
                 if (Nodes[i].data != NULL)
                         tmp[j++] = Nodes[i];
         }
         for (i = 0; i < j; i++)
                 Nodes[i] = tmp[i];
-        MaxIndex = j;
+        next_free_node = j;
 }
 
 int data_alive(Node *n) {
