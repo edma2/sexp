@@ -363,7 +363,7 @@ void reclaim(SExp *exp) {
 
 enum {ADD, SUB, MULT, DIV};
 SExp *math(SExp *args, int type) {
-        int n;
+        int n, x;
 
         if (args == nil) {
                 seterr("missing argument");
@@ -375,14 +375,13 @@ SExp *math(SExp *args, int type) {
                         seterr("invalid argument");
                         return NULL;
                 }
-                if (type == ADD)
-                        n += atoi(car(args)->atom);
-                else if (type == SUB)
-                        n -= atoi(car(args)->atom);
-                else if (type == MULT)
-                        n *= atoi(car(args)->atom);
-                else
-                        n /= atoi(car(args)->atom);
+                x = atoi(car(args)->atom);
+                switch(type) {
+                        case ADD: n += x; break;
+                        case SUB: n -= x; break;
+                        case MULT: n *= x; break;
+                        default: n /= x;
+                }
         }
         snprintf(buf, BUFLEN, "%d", n);
         return mkatom(buf);
@@ -442,22 +441,19 @@ SExp *cmp(SExp *args, int type) {
                         seterr("invalid argument to compare");
                         return NULL;
                 }
-                if (cdr(args) != nil) {
-                        lhs = atoi(car(args)->atom);
-                        rhs = atoi(cadr(args)->atom);
-                        if (type == CMP_LT)
-                                result = lhs < rhs;
-                        else if (type == CMP_GT)
-                                result = lhs > rhs;
-                        else if (type == CMP_LTE)
-                                result = lhs <= rhs;
-                        else if (type == CMP_GTE)
-                                result = lhs >= rhs;
-                        else
-                                result = lhs == rhs;
-                        if (!result)
-                                return false;
+                if (cdr(args) == nil)
+                        break;
+                lhs = atoi(car(args)->atom);
+                rhs = atoi(cadr(args)->atom);
+                switch(type) {
+                        case CMP_LT: result = lhs < rhs; break;
+                        case CMP_GT: result = lhs > rhs; break;
+                        case CMP_LTE: result = lhs <= rhs; break;
+                        case CMP_GTE: result = lhs <= rhs; break;
+                        default: result = lhs == rhs;
                 }
+                if (!result)
+                        return false;
         }
         return true;
 }
