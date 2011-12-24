@@ -276,7 +276,9 @@ SExp *primadd(SExp *args) {
 SExp *primsub(SExp *args) {
         int sum;
 
-        for (sum = 0; !empty(args); args = cdr(args))
+        sum = atoi(car(args)->atom);
+        args = cdr(args);
+        for (; !empty(args); args = cdr(args))
                 sum -= atoi(car(args)->atom);
         snprintf(buf, BUFLEN, "%d", sum);
         return mkatom(buf);
