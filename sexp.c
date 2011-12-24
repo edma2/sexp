@@ -55,6 +55,7 @@ SExp *evallist(SExp *ls, SExp *env);
 SExp *evalif(SExp *exp, SExp *env);
 SExp *evallambda(SExp *exp, SExp *env);
 SExp *evaldefine(SExp *exp, SExp *env);
+SExp *evalbegin(SExp *exp, SExp *env);
 SExp *evalapply(SExp *exp, SExp *env);
 int isfalse(SExp *exp);
 int equals(SExp *e1, SExp *e2);
@@ -89,7 +90,7 @@ SExp *primeql(SExp *args);
 
 char    buf[BUFLEN];    /* string buffer */
 int     eof = 0;        /* end of file flag */
-int     verbose = 1;
+int     verbose = 0;
 SExp   *pool[POOLSIZE]; /* heap references */
 int     counter = 0;    /* next free node in pool */
 SExp   *global;         /* global environment */
@@ -199,6 +200,8 @@ SExp *eval(SExp *exp, SExp *env) {
                 return evallambda(exp, env);
         if (tagged(exp, "define"))
                 return evaldefine(exp, env);
+        if (tagged(exp, "begin"))
+                return evalbegin(exp, env);
         return evalapply(exp, env);
 }
 
@@ -234,6 +237,17 @@ SExp *evaldefine(SExp *exp, SExp *env) {
         if (val == NULL)
                 return NULL;
         return envbind(var, val, env);
+}
+
+SExp *evalbegin(SExp *exp, SExp *env) {
+        SExp *seq, *result;
+
+        for (seq = cdr(exp); seq != nil; seq = cdr(seq)) {
+                result = eval(car(seq), env);
+                if (result == NULL)
+                        return NULL;
+        }
+        return result;
 }
 
 SExp *evalapply(SExp *exp, SExp *env) {
