@@ -233,23 +233,40 @@ SExp *evallookup(SExp *exp, SExp *env) {
 }
 
 SExp *evalif(SExp *exp, SExp *env) {
-        SExp *conditional = eval(cadr(exp), env);
-        SExp *truepart = caddr(exp);
-        SExp *falsepart = cadddr(exp);
+        SExp *conditional, *truepart, *falsepart;
+
+        if (length(exp) != 4) {
+                seterr("malformed if statement");
+                return NULL;
+        }
+        conditional = eval(cadr(exp), env);
+        truepart = caddr(exp);
+        falsepart = cadddr(exp);
         if (isfalse(conditional))
                 return eval(falsepart, env);
         return eval(truepart, env);
 }
 
 SExp *evallambda(SExp *exp, SExp *env) {
-        SExp *params = cadr(exp);
-        SExp *body = caddr(exp);
-        return mkproc(params, body, env);
+        SExp *params, *body;
+
+        if (length(exp) == 3) {
+                params = cadr(exp);
+                body = caddr(exp);
+                if (compound(params) || empty(params))
+                        return mkproc(params, body, env);
+        }
+        seterr("malformed lambda statement");
+        return NULL;
 }
 
 SExp *evaldefine(SExp *exp, SExp *env) {
         SExp *var, *val;
 
+        if (length(exp) != 3) {
+                seterr("malformed define statement");
+                return NULL;
+        }
         if (compound(cadr(exp))) {
                 var = car(cadr(exp));
                 val = mkproc(cdr(cadr(exp)), caddr(exp), env);
@@ -265,13 +282,19 @@ SExp *evaldefine(SExp *exp, SExp *env) {
 SExp *evalset(SExp *exp, SExp *env) {
         SExp *kv, *var, *val;
 
-        var = cadr(exp);
-        val = eval(caddr(exp), env);
-        kv = envlookup(var, env);
-        if (val == NULL || kv == NULL)
-                return NULL;
-        cdr(kv) = val;
-        return nil;
+        if (length(exp) == 3) {
+                var = cadr(exp);
+                val = eval(caddr(exp), env);
+                if (atomic(var) && !number(var)) {
+                        kv = envlookup(var, env);
+                        if (val == NULL || kv == NULL)
+                                return NULL;
+                        cdr(kv) = val;
+                        return nil;
+                }
+        }
+        seterr("malformed set! statement");
+        return NULL;
 }
 
 SExp *evalbegin(SExp *exp, SExp *env) {
@@ -290,6 +313,10 @@ SExp *evalapply(SExp *exp, SExp *env) {
         SExp *operands = evallist(cdr(exp), env);
         if (op == NULL || operands == NULL)
                 return NULL;
+        if (length(cadr(op)) != length(operands)) {
+                seterr("wrong argument count");
+                return NULL;
+        }
         return apply(op, operands);
 }
 
@@ -299,10 +326,6 @@ SExp *apply(SExp *op, SExp *operands) {
         if (primproc(op))
                 return op->prim(operands);
         params = cadr(op);
-        if (length(params) != length(operands)) {
-                seterr("wrong argument count");
-                return NULL;
-        }
         body = caddr(op);
         env = extend(params, operands, cadddr(op));
         if (env == NULL)
@@ -377,7 +400,7 @@ SExp *primcons(SExp *args) {
 
 SExp *primcar(SExp *args) {
         if (!compound(car(args))) {
-                seterr("invalid argument");
+                seterr("invalid argument to car");
                 return NULL;
         }
         return car(car(args));
@@ -385,7 +408,7 @@ SExp *primcar(SExp *args) {
 
 SExp *primcdr(SExp *args) {
         if (!compound(car(args))) {
-                seterr("invalid argument");
+                seterr("invalid argument to cdr");
                 return NULL;
         }
         return cdr(car(args));
