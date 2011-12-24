@@ -89,6 +89,8 @@ SExp *primgt(SExp *args);
 SExp *primlte(SExp *args);
 SExp *primgte(SExp *args);
 SExp *primeql(SExp *args);
+SExp *primsetcar(SExp *args);
+SExp *primsetcdr(SExp *args);
 
 char    buf[BUFLEN];    /* string buffer */
 int     eof = 0;        /* end of file flag */
@@ -416,6 +418,20 @@ SExp *primeql(SExp *args) {
         return primcmp(args, CMP_EQL);
 }
 
+SExp *primsetcar(SExp *args) {
+        SExp *pair = car(args);
+        SExp *val = cadr(args);
+        car(pair) = val;
+        return nil;
+}
+
+SExp *primsetcdr(SExp *args) {
+        SExp *pair = car(args);
+        SExp *val = cadr(args);
+        cdr(pair) = val;
+        return nil;
+}
+
 void init(void) {
         nil = mknil();
         global = cons(nil, nil);
@@ -432,6 +448,8 @@ void init(void) {
         envbind(mkatom("<="), mkprim(primlte), global);
         envbind(mkatom(">="), mkprim(primgte), global);
         envbind(mkatom("="), mkprim(primeql), global);
+        envbind(mkatom("set-car!"), mkprim(primsetcar), global);
+        envbind(mkatom("set-cdr!"), mkprim(primsetcdr), global);
 }
 
 int equals(SExp *e1, SExp *e2) {
