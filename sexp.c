@@ -290,7 +290,7 @@ SExp *evalset(SExp *exp, SExp *env) {
                         if (val == NULL || kv == NULL)
                                 return NULL;
                         cdr(kv) = val;
-                        return nil;
+                        return mkatom("ok");
                 }
         }
         seterr("malformed set! statement");
@@ -489,7 +489,7 @@ SExp *primset(SExp *args, int type) {
                 car(pair) = val;
         else
                 cdr(pair) = val;
-        return nil;
+        return mkatom("ok");
 }
 
 SExp *primsetcar(SExp *args) {
@@ -550,13 +550,13 @@ SExp *envbind(SExp *var, SExp *val, SExp *env) {
                 kv = car(frame);
                 if (equals(var, car(kv))) {
                         cdr(kv) = val;
-                        return nil;
+                        return mkatom("ok");
                 }
         }
         car(env) = cons(cons(var, val), car(env));
         if (car(env) == NULL)
                 return NULL;
-        return nil;
+        return mkatom("ok");
 }
 
 int atomic(SExp *exp) {
