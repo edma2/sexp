@@ -62,7 +62,6 @@ SExp *evaldefine(SExp *exp, SExp *env);
 SExp *evalset(SExp *exp, SExp *env);
 SExp *evalbegin(SExp *exp, SExp *env);
 SExp *evalapply(SExp *exp, SExp *env);
-int equals(SExp *e1, SExp *e2);
 int atomic(SExp *exp);
 int compound(SExp *exp);
 int empty(SExp *exp);
@@ -503,10 +502,8 @@ SExp *primsetcdr(SExp *args) {
 void init(void) {
         nil = mknil();
         global = cons(nil, nil);
-        true = mkatom("#t");
-        false = mkatom("#f");
-        envbind(mkatom("#t"), true, global);
-        envbind(mkatom("#f"), false, global);
+        envbind(mkatom("#t"), true = mkatom("#t"), global);
+        envbind(mkatom("#f"), false = mkatom("#f"), global);
         envbind(mkatom("+"), mkprim(primadd), global);
         envbind(mkatom("-"), mkprim(primsub), global);
         envbind(mkatom("*"), mkprim(primmult), global);
@@ -524,17 +521,13 @@ void init(void) {
         envbind(mkatom("set-cdr!"), mkprim(primsetcdr), global);
 }
 
-int equals(SExp *e1, SExp *e2) {
-        return !strcmp(e1->atom, e2->atom);
-}
-
 SExp *envlookup(SExp *var, SExp *env) {
         SExp *frame, *kv;
 
         for (; env != nil; env = cdr(env)) {
                 for (frame = car(env); frame != nil; frame = cdr(frame)) {
                         kv = car(frame);
-                        if (equals(var, car(kv)))
+                        if (!strcmp(var->atom, car(kv)->atom))
                                 return kv;
 
                 }
@@ -548,7 +541,7 @@ SExp *envbind(SExp *var, SExp *val, SExp *env) {
 
         for (frame = car(env); frame != nil; frame = cdr(frame)) {
                 kv = car(frame);
-                if (equals(var, car(kv))) {
+                if (!strcmp(var->atom, car(kv)->atom)) {
                         cdr(kv) = val;
                         return mkatom("ok");
                 }
