@@ -77,6 +77,9 @@ SExp *extend(SExp *args, SExp *params, SExp *env);
 
 /** Primitives */
 void init(void);
+SExp *math(SExp *args, int type);
+SExp *cmp(SExp *args, int type);
+SExp *mutate(SExp *args, int type);
 SExp *primadd(SExp *args);
 SExp *primsub(SExp *args);
 SExp *primmult(SExp *args);
@@ -85,13 +88,11 @@ SExp *primcons(SExp *args);
 SExp *primcdr(SExp *args);
 SExp *primcar(SExp *args);
 SExp *primeq(SExp *args);
-SExp *primcmp(SExp *args, int type);
 SExp *primlt(SExp *args);
 SExp *primgt(SExp *args);
 SExp *primlte(SExp *args);
 SExp *primgte(SExp *args);
 SExp *primeql(SExp *args);
-SExp *primset(SExp *args, int type);
 SExp *primsetcar(SExp *args);
 SExp *primsetcdr(SExp *args);
 
@@ -360,62 +361,47 @@ void reclaim(SExp *exp) {
         free(exp);
 }
 
-SExp *primadd(SExp *args) {
-        int sum;
+enum {ADD, SUB, MULT, DIV};
+SExp *math(SExp *args, int type) {
+        int n;
 
-        for (sum = 0; !empty(args); args = cdr(args)) {
+        if (args == nil) {
+                seterr("missing argument");
+                return NULL;
+        }
+        n = atoi(car(args)->atom);
+        for (args = cdr(args); args != nil; args = cdr(args)) {
                 if (!number(car(args))) {
-                        seterr("invalid argument to +");
+                        seterr("invalid argument");
                         return NULL;
                 }
-                sum += atoi(car(args)->atom);
+                if (type == ADD)
+                        n += atoi(car(args)->atom);
+                else if (type == SUB)
+                        n -= atoi(car(args)->atom);
+                else if (type == MULT)
+                        n *= atoi(car(args)->atom);
+                else
+                        n /= atoi(car(args)->atom);
         }
-        snprintf(buf, BUFLEN, "%d", sum);
+        snprintf(buf, BUFLEN, "%d", n);
         return mkatom(buf);
+}
+
+SExp *primadd(SExp *args) {
+        return math(args, ADD);
 }
 
 SExp *primsub(SExp *args) {
-        int sum, cnt = 0;
-
-        for (sum = 0; !empty(args); args = cdr(args)) {
-                if (!number(car(args))) {
-                        seterr("invalid argument to -");
-                        return NULL;
-                }
-                if (cnt++ == 1)
-                        sum *= -1;
-                sum -= atoi(car(args)->atom);
-        }
-        snprintf(buf, BUFLEN, "%d", sum);
-        return mkatom(buf);
+        return math(args, SUB);
 }
 
 SExp *primmult(SExp *args) {
-        int prod;
-
-        for (prod = 1; !empty(args); args = cdr(args)) {
-                if (!number(car(args))) {
-                        seterr("invalid argument to *");
-                        return NULL;
-                }
-                prod *= atoi(car(args)->atom);
-        }
-        snprintf(buf, BUFLEN, "%d", prod);
-        return mkatom(buf);
+        return math(args, MULT);
 }
 
 SExp *primdiv(SExp *args) {
-        int prod;
-
-        for (prod = 1; !empty(args); args = cdr(args)) {
-                if (!number(car(args))) {
-                        seterr("invalid argument to /");
-                        return NULL;
-                }
-                prod /= atoi(car(args)->atom);
-        }
-        snprintf(buf, BUFLEN, "%d", prod);
-        return mkatom(buf);
+        return math(args, DIV);
 }
 
 SExp *primcons(SExp *args) {
@@ -448,7 +434,7 @@ SExp *primeq(SExp *args) {
 }
 
 enum {CMP_LT, CMP_GT, CMP_LTE, CMP_GTE, CMP_EQL};
-SExp *primcmp(SExp *args, int type) {
+SExp *cmp(SExp *args, int type) {
         int lhs, rhs, result;
 
         for (; args != nil; args = cdr(args)) {
@@ -477,27 +463,27 @@ SExp *primcmp(SExp *args, int type) {
 }
 
 SExp *primlt(SExp *args) {
-        return primcmp(args, CMP_LT);
+        return cmp(args, CMP_LT);
 }
 
 SExp *primgt(SExp *args) {
-        return primcmp(args, CMP_GT);
+        return cmp(args, CMP_GT);
 }
 
 SExp *primlte(SExp *args) {
-        return primcmp(args, CMP_LTE);
+        return cmp(args, CMP_LTE);
 }
 
 SExp *primgte(SExp *args) {
-        return primcmp(args, CMP_GTE);
+        return cmp(args, CMP_GTE);
 }
 
 SExp *primeql(SExp *args) {
-        return primcmp(args, CMP_EQL);
+        return cmp(args, CMP_EQL);
 }
 
 enum {SETCAR, SETCDR};
-SExp *primset(SExp *args, int type) {
+SExp *mutate(SExp *args, int type) {
         SExp *pair, *val;
 
         if (length(args) != 3) {
@@ -514,11 +500,11 @@ SExp *primset(SExp *args, int type) {
 }
 
 SExp *primsetcar(SExp *args) {
-        return primset(args, SETCAR);
+        return mutate(args, SETCAR);
 }
 
 SExp *primsetcdr(SExp *args) {
-        return primset(args, SETCDR);
+        return mutate(args, SETCDR);
 }
 
 void init(void) {
