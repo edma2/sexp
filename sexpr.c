@@ -4,10 +4,8 @@
 #include <string.h>
 #include <stdarg.h>
 
-/* Macros */
-//{{{
 #define BUFLEN 1024
-#define MAXNODES 256
+#define POOLSIZE 256
 
 #define isreserved(c) (c == ')' || c == '(' || c == '\'')
 
@@ -18,11 +16,7 @@
 #define cadddr(p) (car(cdr(cdr(cdr(p)))))
 
 enum category {QUOTE, LPAREN, RPAREN, STR, END};
-//}}}
 
-/* Data structures */
-//{{{
-/* S-expressions */
 typedef struct SExpr SExpr;
 struct SExpr {
         union {
@@ -31,20 +25,10 @@ struct SExpr {
                 SExpr *(*prim)(SExpr *);
         };
         enum {ATOM, PAIR, NIL, PRIM} type;
-        int live;
+        int live; /* gc flag */
 };
 
-/* Garbage collection nodes */
-typedef struct Node Node;
-struct Node {
-        void *data;
-        enum {FRAME, SEXPR} type;
-};
-//}}}
-
-/* Function declarations */
-//{{{
-void *alloc(void);
+SExpr *alloc(void);
 SExpr *apply(SExpr *op, SExpr *operands);
 int atomic(SExpr *exp);
 void compact(void);
@@ -56,8 +40,8 @@ SExpr *envlookup(SExpr *var, SExpr *env);
 SExpr *evallist(SExpr *ls, SExpr *env);
 SExpr *eval(SExpr *exp, SExpr *env);
 SExpr *extend(SExpr *args, SExpr *params, SExpr *env);
-void reclaim(SExpr *exp);
 void gc(void);
+void reclaim(SExpr *exp);
 void init(void);
 int tagged(SExpr *ls, char *tag);
 SExpr *mkatom(char *str);
@@ -78,28 +62,20 @@ void print(SExpr *exp);
 int readtoken(FILE *f);
 int primitive(SExpr *exp);
 void sweep(void);
-//}}}
 
-/* Globals */
-//{{{
-char    buf[BUFLEN];            /* Token buffer */
-int     eof = 0;                /* EOF flag */
-SExpr   *global;                /* Global environment */
-Node    Nodes[MAXNODES];        /* Heap references */
-int     next_free_node = 0;     /* Next free Node */
-SExpr   *nil;    /* Empty list */
-SExpr   *roots[2];
-//}}}
+char    buf[BUFLEN];            /* string buffer */
+int     eof = 0;                /* end of file flag */
+SExpr   *pool[POOLSIZE];        /* heap references */
+int     counter = 0;            /* next free node in pool */
+SExpr   *global;                /* global environment */
+SExpr   *nil;                   /* empty list */
 
-/* Function definitions */
-//{{{
-#if 0
 void gc(void) {
         mark(global);
+        mark(nil);
         sweep();
         compact();
 }
-#endif
 
 SExpr *mkatom(char *s) {
         SExpr *exp;
@@ -293,8 +269,6 @@ SExpr *primcdr(SExpr *args) {
 void init(void) {
         nil = mknil();
         global = cons(nil, nil);
-        roots[0] = nil;
-        roots[1] = global;
         envbind(mkatom("+"), mkprim(primadd), global);
         envbind(mkatom("-"), mkprim(primsub), global);
         envbind(mkatom("*"), mkprim(primmult), global);
@@ -377,10 +351,6 @@ void print(SExpr *exp) {
                 printf("()");
         } else if (compound(exp)) {
                 if (tagged(exp, "proc")) {
-                        /* HACK: This avoids infinite loops because a
-                         * procedure's environment (which is stuck to the
-                         * procedure structure) may contain a definition for
-                         * the procedure itself. */
                         printf("PROC");
                 } else {
                         printf("(");
@@ -426,22 +396,18 @@ int readtoken(FILE *f) {
         return STR;
 }
 
-void *alloc(void) {
-        void *data;
-        Node *n;
+SExpr *alloc(void) {
+        SExpr *exp;
 
-        if (next_free_node == MAXNODES)
+        if (counter == POOLSIZE)
                 return NULL;
-        data = calloc(1, sizeof(SExpr));
-        if (data == NULL)
+        exp = calloc(1, sizeof(SExpr));
+        if (exp == NULL)
                 return NULL;
-        n = &Nodes[next_free_node++];
-        n->data = data;
-        n->type = SEXPR;
-        return data;
+        pool[counter++] = exp;
+        return exp;
 }
 
-#if 0
 void mark(SExpr *exp) {
         if (exp->live)
                 return;
@@ -451,42 +417,38 @@ void mark(SExpr *exp) {
                 mark(cdr(exp));
         }
 }
-#endif
 
 SExpr *mkproc(SExpr *params, SExpr *body, SExpr *env) {
         return cons(mkatom("proc"), cons(params, cons(body, cons(env, nil))));
 }
 
-#if 0
 void sweep(void) {
         int i;
-        Node *n;
+        SExpr *exp;
 
-        for (i = 0; i < next_free_node; i++) {
-                n = &Nodes[i];
-                if (data_alive(n)) {
-                        data_unmark(n);
+        for (i = 0; i < counter; i++) {
+                exp = pool[i];
+                if (exp->live) {
+                        exp->live = 0;
                 } else {
-                        data_free(n);
-                        n->data = NULL;
+                        reclaim(exp);
+                        pool[i] = NULL;
                 }
         }
 }
 
 void compact(void) {
-        Node tmp[next_free_node];
+        SExpr *alive[counter];
         int i, j = 0;
 
-        for (i = 0; i < next_free_node; i++) {
-                if (Nodes[i].data != NULL)
-                        tmp[j++] = Nodes[i];
+        for (i = 0; i < counter; i++) {
+                if (pool[i] != NULL)
+                        alive[j++] = pool[i];
         }
         for (i = 0; i < j; i++)
-                Nodes[i] = tmp[i];
-        next_free_node = j;
+                pool[i] = alive[i];
+        counter = j;
 }
-#endif
-//}}}
 
 int main(void) {
         SExpr *input, *result;
@@ -507,8 +469,8 @@ int main(void) {
                                 break;
                         fprintf(stderr, "Parse error!\n");
                 }
-                //gc();
+                gc();
         }
-        //sweep();
+        sweep();
         return 0;
 }
