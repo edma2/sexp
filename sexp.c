@@ -338,6 +338,10 @@ SExp *evalapply(SExp *exp, SExp *env) {
         operands = evallist(cdr(exp), env);
         if (op == NULL || operands == NULL)
                 return NULL;
+        if (!tagged(op, "proc")) {
+                seterr("not a procedure");
+                return NULL;
+        }
         return apply(op, operands);
 }
 
