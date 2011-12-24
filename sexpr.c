@@ -50,9 +50,6 @@ int atomic(SExpr *exp);
 void compact(void);
 int compound(SExpr *exp);
 SExpr *cons(SExpr *car, SExpr *cdr);
-int data_alive(Node *n);
-void data_free(Node *n);
-void data_unmark(Node *n);
 int empty(SExpr *exp);
 SExpr *envbind(SExpr *var, SExpr *val, SExpr *env);
 SExpr *envlookup(SExpr *var, SExpr *env);
@@ -78,7 +75,7 @@ SExpr *primcons(SExpr *args);
 SExpr *primcdr(SExpr *args);
 SExpr *primcar(SExpr *args);
 void print(SExpr *exp);
-int read_token(FILE *f);
+int readtoken(FILE *f);
 int primitive(SExpr *exp);
 void sweep(void);
 //}}}
@@ -160,7 +157,7 @@ SExpr *parse(FILE *f, int depth) {
         int category;
         SExpr *car, *cdr;
 
-        category = read_token(f);
+        category = readtoken(f);
         if (category == END) {
                 eof = 1;
                 return NULL;
@@ -397,7 +394,7 @@ void print(SExpr *exp) {
         }
 }
 
-int read_token(FILE *f) {
+int readtoken(FILE *f) {
         char c;
         int i;
 
