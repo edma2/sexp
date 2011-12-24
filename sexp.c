@@ -80,6 +80,7 @@ SExp *primcons(SExp *args);
 SExp *primcdr(SExp *args);
 SExp *primcar(SExp *args);
 SExp *primeq(SExp *args);
+SExp *primeql(SExp *args);
 
 char    buf[BUFLEN];    /* string buffer */
 int     eof = 0;        /* end of file flag */
@@ -317,6 +318,15 @@ SExp *primeq(SExp *args) {
         return mkatom("#t");
 }
 
+SExp *primeql(SExp *args) {
+        SExp *exp = car(args);
+        for (; args != nil; args = cdr(args)) {
+                if (!number(car(args)) || !equals(car(args), exp))
+                        return mkatom("#f");
+        }
+        return mkatom("#t");
+}
+
 void init(void) {
         nil = mknil();
         global = cons(nil, nil);
@@ -328,6 +338,7 @@ void init(void) {
         envbind(mkatom("car"), mkprim(primcar), global);
         envbind(mkatom("cdr"), mkprim(primcdr), global);
         envbind(mkatom("eq?"), mkprim(primeq), global);
+        envbind(mkatom("="), mkprim(primeql), global);
 }
 
 int equals(SExp *e1, SExp *e2) {
