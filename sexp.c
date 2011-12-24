@@ -109,7 +109,6 @@ SExp   *false;
 
 void gc(void) {
         mark(global);
-        mark(nil);
         sweep();
         compact();
 }
