@@ -119,13 +119,13 @@ SExp *primsetcdr(SExp *args);
 char    buf[BUFLEN];    /* string buffer */
 char   *err = NULL;     /* for displaying errors */
 int     eof = 0;        /* end of file flag */
-int     verbose = 0;
+int     verbose = 0;    /* verbosity */
 SExp   *pool[POOLSIZE]; /* heap references */
 int     counter = 0;    /* next free node in pool */
 SExp   *global;         /* global environment */
 SExp   *nil;            /* empty list */
-SExp   *true;
-SExp   *false;
+SExp   *true;           /* #t */
+SExp   *false;          /* #f */
 
 void gc(void) {
         mark(global);
