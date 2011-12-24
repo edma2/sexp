@@ -149,6 +149,10 @@ SExp *mkprim(SExp *(*prim)(SExp *)) {
         return exp;
 }
 
+SExp *mkproc(SExp *params, SExp *body, SExp *env) {
+        return cons(mkatom("proc"), cons(params, cons(body, cons(env, nil))));
+}
+
 SExp *mknil(void) {
         SExp *exp;
 
@@ -359,19 +363,29 @@ void reclaim(SExp *exp) {
 SExp *primadd(SExp *args) {
         int sum;
 
-        for (sum = 0; !empty(args); args = cdr(args))
+        for (sum = 0; !empty(args); args = cdr(args)) {
+                if (!number(car(args))) {
+                        seterr("invalid argument to +");
+                        return NULL;
+                }
                 sum += atoi(car(args)->atom);
+        }
         snprintf(buf, BUFLEN, "%d", sum);
         return mkatom(buf);
 }
 
 SExp *primsub(SExp *args) {
-        int sum;
+        int sum, cnt = 0;
 
-        sum = atoi(car(args)->atom);
-        args = cdr(args);
-        for (; !empty(args); args = cdr(args))
+        for (sum = 0; !empty(args); args = cdr(args)) {
+                if (!number(car(args))) {
+                        seterr("invalid argument to -");
+                        return NULL;
+                }
+                if (cnt++ == 1)
+                        sum *= -1;
                 sum -= atoi(car(args)->atom);
+        }
         snprintf(buf, BUFLEN, "%d", sum);
         return mkatom(buf);
 }
@@ -379,20 +393,28 @@ SExp *primsub(SExp *args) {
 SExp *primmult(SExp *args) {
         int prod;
 
-        for (prod = 1; !empty(args); args = cdr(args))
+        for (prod = 1; !empty(args); args = cdr(args)) {
+                if (!number(car(args))) {
+                        seterr("invalid argument to *");
+                        return NULL;
+                }
                 prod *= atoi(car(args)->atom);
+        }
         snprintf(buf, BUFLEN, "%d", prod);
         return mkatom(buf);
 }
 
 SExp *primdiv(SExp *args) {
-        int quot;
+        int prod;
 
-        quot = atoi(car(args)->atom);
-        args = cdr(args);
-        for (; !empty(args); args = cdr(args))
-                quot /= atoi(car(args)->atom);
-        snprintf(buf, BUFLEN, "%d", quot);
+        for (prod = 1; !empty(args); args = cdr(args)) {
+                if (!number(car(args))) {
+                        seterr("invalid argument to /");
+                        return NULL;
+                }
+                prod /= atoi(car(args)->atom);
+        }
+        snprintf(buf, BUFLEN, "%d", prod);
         return mkatom(buf);
 }
 
@@ -665,10 +687,6 @@ void mark(SExp *exp) {
                 mark(car(exp));
                 mark(cdr(exp));
         }
-}
-
-SExp *mkproc(SExp *params, SExp *body, SExp *env) {
-        return cons(mkatom("proc"), cons(params, cons(body, cons(env, nil))));
 }
 
 void sweep(void) {
