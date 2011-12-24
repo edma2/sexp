@@ -52,6 +52,8 @@ void print(SExp *exp);
 SExp *apply(SExp *op, SExp *operands);
 SExp *eval(SExp *exp, SExp *env);
 SExp *evallist(SExp *ls, SExp *env);
+SExp *evalif(SExp *exp, SExp *env);
+int isfalse(SExp *exp);
 int atomic(SExp *exp);
 int compound(SExp *exp);
 int empty(SExp *exp);
@@ -180,6 +182,8 @@ SExp *eval(SExp *exp, SExp *env) {
                         return exp;
                 return envlookup(exp, env);
         }
+        if (tagged(exp, "if"))
+                return evalif(exp, env);
         if (tagged(exp, "quote"))
                 return cadr(exp);
         if (tagged(exp, "lambda")) {
@@ -199,6 +203,19 @@ SExp *eval(SExp *exp, SExp *env) {
         if (op == NULL || operands == NULL)
                 return NULL;
         return apply(op, operands);
+}
+
+int isfalse(SExp *exp) {
+        return atomic(exp) && !strcmp(exp->atom, "#f");
+}
+
+SExp *evalif(SExp *exp, SExp *env) {
+        SExp *conditional = eval(cadr(exp), env);
+        SExp *truepart = caddr(exp);
+        SExp *falsepart = cadddr(exp);
+        if (isfalse(conditional))
+                return eval(falsepart, env);
+        return eval(truepart, env);
 }
 
 SExp *apply(SExp *op, SExp *operands) {
