@@ -17,58 +17,58 @@
 
 enum category {QUOTE, LPAREN, RPAREN, STR, END};
 
-typedef struct SExpr SExpr;
-struct SExpr {
+typedef struct SExp SExp;
+struct SExp {
         union {
                 char *atom;
-                SExpr *pair[2];
-                SExpr *(*prim)(SExpr *);
+                SExp *pair[2];
+                SExp *(*prim)(SExp *);
         };
         enum {ATOM, PAIR, NIL, PRIM} type;
         int live; /* gc flag */
 };
 
-SExpr *alloc(void);
-SExpr *apply(SExpr *op, SExpr *operands);
-int atomic(SExpr *exp);
+SExp *alloc(void);
+SExp *apply(SExp *op, SExp *operands);
+int atomic(SExp *exp);
 void compact(void);
-int compound(SExpr *exp);
-SExpr *cons(SExpr *car, SExpr *cdr);
-int empty(SExpr *exp);
-SExpr *envbind(SExpr *var, SExpr *val, SExpr *env);
-SExpr *envlookup(SExpr *var, SExpr *env);
-SExpr *evallist(SExpr *ls, SExpr *env);
-SExpr *eval(SExpr *exp, SExpr *env);
-SExpr *extend(SExpr *args, SExpr *params, SExpr *env);
+int compound(SExp *exp);
+SExp *cons(SExp *car, SExp *cdr);
+int empty(SExp *exp);
+SExp *envbind(SExp *var, SExp *val, SExp *env);
+SExp *envlookup(SExp *var, SExp *env);
+SExp *evallist(SExp *ls, SExp *env);
+SExp *eval(SExp *exp, SExp *env);
+SExp *extend(SExp *args, SExp *params, SExp *env);
 void gc(void);
-void reclaim(SExpr *exp);
+void reclaim(SExp *exp);
 void init(void);
-int tagged(SExpr *ls, char *tag);
-SExpr *mkatom(char *str);
-SExpr *mkpair(SExpr *car, SExpr *cdr);
-SExpr *mkprim(SExpr *(*prim)(SExpr *));
-SExpr *mkproc(SExpr *params, SExpr *body, SExpr *env);
-void mark(SExpr *exp);
-int number(SExpr *exp);
-SExpr *parse(FILE *f, int depth);
-SExpr *primadd(SExpr *args);
-SExpr *primsub(SExpr *args);
-SExpr *primmult(SExpr *args);
-SExpr *primdiv(SExpr *args);
-SExpr *primcons(SExpr *args);
-SExpr *primcdr(SExpr *args);
-SExpr *primcar(SExpr *args);
-void print(SExpr *exp);
+int tagged(SExp *ls, char *tag);
+SExp *mkatom(char *str);
+SExp *mkpair(SExp *car, SExp *cdr);
+SExp *mkprim(SExp *(*prim)(SExp *));
+SExp *mkproc(SExp *params, SExp *body, SExp *env);
+void mark(SExp *exp);
+int number(SExp *exp);
+SExp *parse(FILE *f, int depth);
+SExp *primadd(SExp *args);
+SExp *primsub(SExp *args);
+SExp *primmult(SExp *args);
+SExp *primdiv(SExp *args);
+SExp *primcons(SExp *args);
+SExp *primcdr(SExp *args);
+SExp *primcar(SExp *args);
+void print(SExp *exp);
 int readtoken(FILE *f);
-int primitive(SExpr *exp);
+int primitive(SExp *exp);
 void sweep(void);
 
 char    buf[BUFLEN];            /* string buffer */
 int     eof = 0;                /* end of file flag */
-SExpr   *pool[POOLSIZE];        /* heap references */
+SExp   *pool[POOLSIZE];        /* heap references */
 int     counter = 0;            /* next free node in pool */
-SExpr   *global;                /* global environment */
-SExpr   *nil;                   /* empty list */
+SExp   *global;                /* global environment */
+SExp   *nil;                   /* empty list */
 
 void gc(void) {
         mark(global);
@@ -77,8 +77,8 @@ void gc(void) {
         compact();
 }
 
-SExpr *mkatom(char *s) {
-        SExpr *exp;
+SExp *mkatom(char *s) {
+        SExp *exp;
 
         exp = alloc();
         if (exp == NULL)
@@ -90,8 +90,8 @@ SExpr *mkatom(char *s) {
         return exp;
 }
 
-SExpr *mkpair(SExpr *car, SExpr *cdr) {
-        SExpr *exp;
+SExp *mkpair(SExp *car, SExp *cdr) {
+        SExp *exp;
 
         exp = alloc();
         if (exp == NULL)
@@ -102,8 +102,8 @@ SExpr *mkpair(SExpr *car, SExpr *cdr) {
         return exp;
 }
 
-SExpr *mkprim(SExpr *(*prim)(SExpr *)) {
-        SExpr *exp;
+SExp *mkprim(SExp *(*prim)(SExp *)) {
+        SExp *exp;
 
         exp = alloc();
         if (exp == NULL)
@@ -113,8 +113,8 @@ SExpr *mkprim(SExpr *(*prim)(SExpr *)) {
         return exp;
 }
 
-SExpr *mknil(void) {
-        SExpr *exp;
+SExp *mknil(void) {
+        SExp *exp;
 
         exp = alloc();
         if (exp == NULL)
@@ -123,15 +123,15 @@ SExpr *mknil(void) {
         return exp;
 }
 
-SExpr *cons(SExpr *car, SExpr *cdr) {
+SExp *cons(SExp *car, SExp *cdr) {
         if (car == NULL || cdr == NULL)
                 return NULL;
         return mkpair(car, cdr);
 }
 
-SExpr *parse(FILE *f, int depth) {
+SExp *parse(FILE *f, int depth) {
         int category;
-        SExpr *car, *cdr;
+        SExp *car, *cdr;
 
         category = readtoken(f);
         if (category == END) {
@@ -152,14 +152,14 @@ SExpr *parse(FILE *f, int depth) {
         return cons(car, cdr);
 }
 
-SExpr *evallist(SExpr *ls, SExpr *env) {
+SExp *evallist(SExp *ls, SExp *env) {
         if (empty(ls))
                 return nil;
         return cons(eval(car(ls), env), evallist(cdr(ls), env));
 }
 
-SExpr *eval(SExpr *exp, SExpr *env) {
-        SExpr *op, *operands, *params, *body, *var, *val;
+SExp *eval(SExp *exp, SExp *env) {
+        SExp *op, *operands, *params, *body, *var, *val;
 
         if (empty(exp))
                 return nil;
@@ -189,8 +189,8 @@ SExpr *eval(SExpr *exp, SExpr *env) {
         return apply(op, operands);
 }
 
-SExpr *apply(SExpr *op, SExpr *operands) {
-        SExpr *body, *params, *env;
+SExp *apply(SExp *op, SExp *operands) {
+        SExp *body, *params, *env;
 
         if (primitive(op))
                 return op->prim(operands);
@@ -202,21 +202,21 @@ SExpr *apply(SExpr *op, SExpr *operands) {
         return eval(body, env);
 }
 
-SExpr *extend(SExpr *params, SExpr *args, SExpr *env) {
-        SExpr *frame = nil;
+SExp *extend(SExp *params, SExp *args, SExp *env) {
+        SExp *frame = nil;
 
         for (; args != nil; args = cdr(args), params = cdr(params))
                 frame = cons(cons(car(params), car(args)), frame);
         return cons(frame, env);
 }
 
-void reclaim(SExpr *exp) {
+void reclaim(SExp *exp) {
         if (exp->type == ATOM)
                 free(exp->atom);
         free(exp);
 }
 
-SExpr *primadd(SExpr *args) {
+SExp *primadd(SExp *args) {
         int sum;
 
         for (sum = 0; !empty(args); args = cdr(args))
@@ -225,7 +225,7 @@ SExpr *primadd(SExpr *args) {
         return mkatom(buf);
 }
 
-SExpr *primsub(SExpr *args) {
+SExp *primsub(SExp *args) {
         int sum;
 
         for (sum = 0; !empty(args); args = cdr(args))
@@ -234,7 +234,7 @@ SExpr *primsub(SExpr *args) {
         return mkatom(buf);
 }
 
-SExpr *primmult(SExpr *args) {
+SExp *primmult(SExp *args) {
         int prod;
 
         for (prod = 1; !empty(args); args = cdr(args))
@@ -243,7 +243,7 @@ SExpr *primmult(SExpr *args) {
         return mkatom(buf);
 }
 
-SExpr *primdiv(SExpr *args) {
+SExp *primdiv(SExp *args) {
         int quot;
 
         quot = atoi(car(args)->atom);
@@ -254,15 +254,15 @@ SExpr *primdiv(SExpr *args) {
         return mkatom(buf);
 }
 
-SExpr *primcons(SExpr *args) {
+SExp *primcons(SExp *args) {
         return cons(car(args), cadr(args));
 }
 
-SExpr *primcar(SExpr *args) {
+SExp *primcar(SExp *args) {
         return car(car(args));
 }
 
-SExpr *primcdr(SExpr *args) {
+SExp *primcdr(SExp *args) {
         return cdr(car(args));
 }
 
@@ -278,12 +278,12 @@ void init(void) {
         envbind(mkatom("cdr"), mkprim(primcdr), global);
 }
 
-int eq(SExpr *e1, SExpr *e2) {
+int eq(SExp *e1, SExp *e2) {
         return !strcmp(e1->atom, e2->atom);
 }
 
-SExpr *envlookup(SExpr *var, SExpr *env) {
-        SExpr *frame, *kv;
+SExp *envlookup(SExp *var, SExp *env) {
+        SExp *frame, *kv;
 
         for (; env != nil; env = cdr(env)) {
                 for (frame = car(env); frame != nil; frame = cdr(frame)) {
@@ -296,8 +296,8 @@ SExpr *envlookup(SExpr *var, SExpr *env) {
         return NULL;
 }
 
-SExpr *envbind(SExpr *var, SExpr *val, SExpr *env) {
-        SExpr *frame, *kv;
+SExp *envbind(SExp *var, SExp *val, SExp *env) {
+        SExp *frame, *kv;
 
         for (frame = car(env); frame != nil; frame = cdr(frame)) {
                 kv = car(frame);
@@ -312,23 +312,23 @@ SExpr *envbind(SExpr *var, SExpr *val, SExpr *env) {
         return nil;
 }
 
-int atomic(SExpr *exp) {
+int atomic(SExp *exp) {
         return exp->type == ATOM;
 }
 
-int compound(SExpr *exp) {
+int compound(SExp *exp) {
         return exp->type == PAIR;
 }
 
-int empty(SExpr *exp) {
+int empty(SExp *exp) {
         return exp->type == NIL;
 }
 
-int primitive(SExpr *exp) {
+int primitive(SExp *exp) {
         return exp->type == PRIM;
 }
 
-int number(SExpr *exp) {
+int number(SExp *exp) {
         char *s;
 
         if (!atomic(exp))
@@ -340,11 +340,11 @@ int number(SExpr *exp) {
         return 1;
 }
 
-int tagged(SExpr *ls, char *tag) {
+int tagged(SExp *ls, char *tag) {
         return compound(ls) && atomic(car(ls)) && !strcmp(car(ls)->atom, tag);
 }
 
-void print(SExpr *exp) {
+void print(SExp *exp) {
         if (atomic(exp)) {
                 printf("%s", exp->atom);
         } else if (empty(exp)) {
@@ -396,19 +396,19 @@ int readtoken(FILE *f) {
         return STR;
 }
 
-SExpr *alloc(void) {
-        SExpr *exp;
+SExp *alloc(void) {
+        SExp *exp;
 
         if (counter == POOLSIZE)
                 return NULL;
-        exp = calloc(1, sizeof(SExpr));
+        exp = calloc(1, sizeof(SExp));
         if (exp == NULL)
                 return NULL;
         pool[counter++] = exp;
         return exp;
 }
 
-void mark(SExpr *exp) {
+void mark(SExp *exp) {
         if (exp->live)
                 return;
         exp->live = 1;
@@ -418,13 +418,13 @@ void mark(SExpr *exp) {
         }
 }
 
-SExpr *mkproc(SExpr *params, SExpr *body, SExpr *env) {
+SExp *mkproc(SExp *params, SExp *body, SExp *env) {
         return cons(mkatom("proc"), cons(params, cons(body, cons(env, nil))));
 }
 
 void sweep(void) {
         int i;
-        SExpr *exp;
+        SExp *exp;
 
         for (i = 0; i < counter; i++) {
                 exp = pool[i];
@@ -438,7 +438,7 @@ void sweep(void) {
 }
 
 void compact(void) {
-        SExpr *alive[counter];
+        SExp *alive[counter];
         int i, j = 0;
 
         for (i = 0; i < counter; i++) {
@@ -451,7 +451,7 @@ void compact(void) {
 }
 
 int main(void) {
-        SExpr *input, *result;
+        SExp *input, *result;
 
         init();
         while (!eof) {
