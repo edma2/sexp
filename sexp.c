@@ -222,8 +222,15 @@ SExp *evallambda(SExp *exp, SExp *env) {
 }
 
 SExp *evaldefine(SExp *exp, SExp *env) {
-        SExp *var = cadr(exp);
-        SExp *val = eval(caddr(exp), env);
+        SExp *var, *val;
+
+        if (compound(cadr(exp))) {
+                var = car(cadr(exp));
+                val = mkproc(cdr(cadr(exp)), caddr(exp), env);
+        } else {
+                var = cadr(exp);
+                val = eval(caddr(exp), env);
+        }
         if (val == NULL)
                 return NULL;
         return envbind(var, val, env);
