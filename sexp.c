@@ -67,6 +67,7 @@ int empty(SExp *exp);
 int number(SExp *exp);
 int primproc(SExp *exp);
 int tagged(SExp *ls, char *tag);
+int length(SExp *exp);
 
 /** Environment */
 SExp *envbind(SExp *var, SExp *val, SExp *env);
@@ -289,11 +290,20 @@ SExp *apply(SExp *op, SExp *operands) {
         if (primproc(op))
                 return op->prim(operands);
         params = cadr(op);
+        if (length(params) != length(operands))
+                return NULL;
         body = caddr(op);
         env = extend(params, operands, cadddr(op));
         if (env == NULL)
                 return NULL;
         return eval(body, env);
+}
+
+int length(SExp *exp) {
+        int len;
+        for (len = 0; exp != nil; exp = cdr(exp))
+                len++;
+        return len;
 }
 
 SExp *extend(SExp *params, SExp *args, SExp *env) {
