@@ -48,6 +48,9 @@ int readtoken(FILE *f);
 SExp *parse(FILE *f, int depth);
 void print(SExp *exp);
 
+/** Error handling */
+void seterr(char *msg);
+
 /** Evaluation */
 SExp *apply(SExp *op, SExp *operands);
 SExp *eval(SExp *exp, SExp *env);
@@ -90,10 +93,12 @@ SExp *primgt(SExp *args);
 SExp *primlte(SExp *args);
 SExp *primgte(SExp *args);
 SExp *primeql(SExp *args);
+SExp *primset(SExp *args, int type);
 SExp *primsetcar(SExp *args);
 SExp *primsetcdr(SExp *args);
 
 char    buf[BUFLEN];    /* string buffer */
+char   *err = NULL;     /* for displaying errors */
 int     eof = 0;        /* end of file flag */
 int     verbose = 0;
 SExp   *pool[POOLSIZE]; /* heap references */
@@ -171,7 +176,11 @@ SExp *parse(FILE *f, int depth) {
         } else if (category == LPAREN) {
                 car = parse(f, depth+1);
         } else if (category == RPAREN) {
-                return depth ? nil : NULL;
+                if (!depth) {
+                        seterr("unexpected paren");
+                        return NULL;
+                }
+                return nil;
         } else if (category == QUOTE) {
                 car = cons(mkatom("quote"), cons(parse(f, 0), nil));
         } else {
@@ -290,8 +299,10 @@ SExp *apply(SExp *op, SExp *operands) {
         if (primproc(op))
                 return op->prim(operands);
         params = cadr(op);
-        if (length(params) != length(operands))
+        if (length(params) != length(operands)) {
+                seterr("wrong argument count");
                 return NULL;
+        }
         body = caddr(op);
         env = extend(params, operands, cadddr(op));
         if (env == NULL)
@@ -365,10 +376,18 @@ SExp *primcons(SExp *args) {
 }
 
 SExp *primcar(SExp *args) {
+        if (!compound(car(args))) {
+                seterr("invalid argument");
+                return NULL;
+        }
         return car(car(args));
 }
 
 SExp *primcdr(SExp *args) {
+        if (!compound(car(args))) {
+                seterr("invalid argument");
+                return NULL;
+        }
         return cdr(car(args));
 }
 
@@ -383,27 +402,29 @@ SExp *primeq(SExp *args) {
 
 enum {CMP_LT, CMP_GT, CMP_LTE, CMP_GTE, CMP_EQL};
 SExp *primcmp(SExp *args, int type) {
-        int a, b, result;
+        int lhs, rhs, result;
 
-        if (!number(car(args)))
-                return NULL;
-        a = atoi(car(args)->atom);
-        for (args = cdr(args); args != nil; args = cdr(args)) {
-                if (!number(car(args)))
+        for (; args != nil; args = cdr(args)) {
+                if (!number(car(args))) {
+                        seterr("invalid argument");
                         return NULL;
-                b = atoi(car(args)->atom);
-                if (type == CMP_LT)
-                        result = a < b;
-                else if (type == CMP_GT)
-                        result = a > b;
-                else if (type == CMP_LTE)
-                        result = a <= b;
-                else if (type == CMP_GTE)
-                        result = a >= b;
-                else
-                        result = a == b;
-                if (!result)
-                        return mkatom("#f");
+                }
+                if (cdr(args) != nil) {
+                        lhs = atoi(car(args)->atom);
+                        rhs = atoi(cadr(args)->atom);
+                        if (type == CMP_LT)
+                                result = lhs < rhs;
+                        else if (type == CMP_GT)
+                                result = lhs > rhs;
+                        else if (type == CMP_LTE)
+                                result = lhs <= rhs;
+                        else if (type == CMP_GTE)
+                                result = lhs >= rhs;
+                        else
+                                result = lhs == rhs;
+                        if (!result)
+                                return mkatom("#f");
+                }
         }
         return mkatom("#t");
 }
@@ -428,18 +449,29 @@ SExp *primeql(SExp *args) {
         return primcmp(args, CMP_EQL);
 }
 
-SExp *primsetcar(SExp *args) {
-        SExp *pair = car(args);
-        SExp *val = cadr(args);
-        car(pair) = val;
+enum {SETCAR, SETCDR};
+SExp *primset(SExp *args, int type) {
+        SExp *pair, *val;
+
+        if (length(args) != 3) {
+                seterr("invalid arguments");
+                return NULL;
+        }
+        pair = car(args);
+        val = cadr(args);
+        if (type == SETCAR)
+                car(pair) = val;
+        else
+                cdr(pair) = val;
         return nil;
 }
 
+SExp *primsetcar(SExp *args) {
+        return primset(args, SETCAR);
+}
+
 SExp *primsetcdr(SExp *args) {
-        SExp *pair = car(args);
-        SExp *val = cadr(args);
-        cdr(pair) = val;
-        return nil;
+        return primset(args, SETCDR);
 }
 
 void init(void) {
@@ -477,6 +509,7 @@ SExp *envlookup(SExp *var, SExp *env) {
 
                 }
         }
+        seterr("undefined variable");
         return NULL;
 }
 
@@ -580,14 +613,23 @@ int readtoken(FILE *f) {
         return STR;
 }
 
+void seterr(char *msg) {
+        if (err == NULL)
+                err = msg;
+}
+
 SExp *alloc(void) {
         SExp *exp;
 
-        if (counter == POOLSIZE)
+        if (counter == POOLSIZE) {
+                seterr("out of nodes");
                 return NULL;
+        }
         exp = calloc(1, sizeof(SExp));
-        if (exp == NULL)
+        if (exp == NULL) {
+                seterr("malloc failed");
                 return NULL;
+        }
         pool[counter++] = exp;
         return exp;
 }
@@ -644,23 +686,18 @@ int main(void) {
         SExp *input, *result;
 
         init();
-        while (1) {
+        while (!eof) {
                 input = parse(stdin, 0);
-                if (input == NULL) {
-                        if (eof)
-                                break;
-                        fprintf(stderr, "Parse error!\n");
-                        gc();
-                        continue;
+                if (input != NULL) {
+                        result = eval(input, global);
+                        if (result != NULL) {
+                                print(result);
+                                printf("\n");
+                        }
                 }
-                result = eval(input, global);
-                if (result == NULL) {
-                        fprintf(stderr, "Eval error!\n");
-                        gc();
-                        continue;
-                }
-                print(result);
-                printf("\n");
+                if (err != NULL)
+                        fprintf(stderr, "Error: %s\n", err);
+                err = NULL;
                 gc();
         }
         sweep();
