@@ -80,6 +80,11 @@ SExp *primcons(SExp *args);
 SExp *primcdr(SExp *args);
 SExp *primcar(SExp *args);
 SExp *primeq(SExp *args);
+SExp *primcmp(SExp *args, int type);
+SExp *primlt(SExp *args);
+SExp *primgt(SExp *args);
+SExp *primlte(SExp *args);
+SExp *primgte(SExp *args);
 SExp *primeql(SExp *args);
 
 char    buf[BUFLEN];    /* string buffer */
@@ -318,13 +323,51 @@ SExp *primeq(SExp *args) {
         return mkatom("#t");
 }
 
-SExp *primeql(SExp *args) {
-        SExp *exp = car(args);
-        for (; args != nil; args = cdr(args)) {
-                if (!number(car(args)) || !equals(car(args), exp))
+enum {CMP_LT, CMP_GT, CMP_LTE, CMP_GTE, CMP_EQL};
+SExp *primcmp(SExp *args, int type) {
+        int a, b, result;
+
+        if (!number(car(args)))
+                return NULL;
+        a = atoi(car(args)->atom);
+        for (args = cdr(args); args != nil; args = cdr(args)) {
+                if (!number(car(args)))
+                        return NULL;
+                b = atoi(car(args)->atom);
+                if (type == CMP_LT)
+                        result = a < b;
+                else if (type == CMP_GT)
+                        result = a > b;
+                else if (type == CMP_LTE)
+                        result = a <= b;
+                else if (type == CMP_GTE)
+                        result = a >= b;
+                else
+                        result = a == b;
+                if (!result)
                         return mkatom("#f");
         }
         return mkatom("#t");
+}
+
+SExp *primlt(SExp *args) {
+        return primcmp(args, CMP_LT);
+}
+
+SExp *primgt(SExp *args) {
+        return primcmp(args, CMP_GT);
+}
+
+SExp *primlte(SExp *args) {
+        return primcmp(args, CMP_LTE);
+}
+
+SExp *primgte(SExp *args) {
+        return primcmp(args, CMP_GTE);
+}
+
+SExp *primeql(SExp *args) {
+        return primcmp(args, CMP_EQL);
 }
 
 void init(void) {
@@ -338,6 +381,10 @@ void init(void) {
         envbind(mkatom("car"), mkprim(primcar), global);
         envbind(mkatom("cdr"), mkprim(primcdr), global);
         envbind(mkatom("eq?"), mkprim(primeq), global);
+        envbind(mkatom("<"), mkprim(primlt), global);
+        envbind(mkatom(">"), mkprim(primgt), global);
+        envbind(mkatom("<="), mkprim(primlte), global);
+        envbind(mkatom(">="), mkprim(primgte), global);
         envbind(mkatom("="), mkprim(primeql), global);
 }
 
