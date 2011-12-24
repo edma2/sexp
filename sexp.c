@@ -313,10 +313,6 @@ SExp *evalapply(SExp *exp, SExp *env) {
         SExp *operands = evallist(cdr(exp), env);
         if (op == NULL || operands == NULL)
                 return NULL;
-        if (length(cadr(op)) != length(operands)) {
-                seterr("wrong argument count");
-                return NULL;
-        }
         return apply(op, operands);
 }
 
@@ -326,6 +322,10 @@ SExp *apply(SExp *op, SExp *operands) {
         if (primproc(op))
                 return op->prim(operands);
         params = cadr(op);
+        if (length(params) != length(operands)) {
+                seterr("wrong argument count");
+                return NULL;
+        }
         body = caddr(op);
         env = extend(params, operands, cadddr(op));
         if (env == NULL)
