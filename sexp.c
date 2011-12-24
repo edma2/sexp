@@ -52,9 +52,11 @@ void print(SExp *exp);
 SExp *apply(SExp *op, SExp *operands);
 SExp *eval(SExp *exp, SExp *env);
 SExp *evallist(SExp *ls, SExp *env);
+SExp *evallookup(SExp *exp, SExp *env);
 SExp *evalif(SExp *exp, SExp *env);
 SExp *evallambda(SExp *exp, SExp *env);
 SExp *evaldefine(SExp *exp, SExp *env);
+SExp *evalset(SExp *exp, SExp *env);
 SExp *evalbegin(SExp *exp, SExp *env);
 SExp *evalapply(SExp *exp, SExp *env);
 int isfalse(SExp *exp);
@@ -190,7 +192,7 @@ SExp *eval(SExp *exp, SExp *env) {
         if (atomic(exp)) {
                 if (number(exp))
                         return exp;
-                return envlookup(exp, env);
+                return evallookup(exp, env);
         }
         if (tagged(exp, "if"))
                 return evalif(exp, env);
@@ -200,6 +202,8 @@ SExp *eval(SExp *exp, SExp *env) {
                 return evallambda(exp, env);
         if (tagged(exp, "define"))
                 return evaldefine(exp, env);
+        if (tagged(exp, "set!"))
+                return evalset(exp, env);
         if (tagged(exp, "begin"))
                 return evalbegin(exp, env);
         return evalapply(exp, env);
@@ -207,6 +211,13 @@ SExp *eval(SExp *exp, SExp *env) {
 
 int isfalse(SExp *exp) {
         return atomic(exp) && !strcmp(exp->atom, "#f");
+}
+
+SExp *evallookup(SExp *exp, SExp *env) {
+        SExp *kv = envlookup(exp, env);
+        if (kv == NULL)
+                return NULL;
+        return cdr(kv);
 }
 
 SExp *evalif(SExp *exp, SExp *env) {
@@ -237,6 +248,18 @@ SExp *evaldefine(SExp *exp, SExp *env) {
         if (val == NULL)
                 return NULL;
         return envbind(var, val, env);
+}
+
+SExp *evalset(SExp *exp, SExp *env) {
+        SExp *kv, *var, *val;
+
+        var = cadr(exp);
+        val = eval(caddr(exp), env);
+        kv = envlookup(var, env);
+        if (val == NULL || kv == NULL)
+                return NULL;
+        cdr(kv) = val;
+        return nil;
 }
 
 SExp *evalbegin(SExp *exp, SExp *env) {
@@ -422,7 +445,7 @@ SExp *envlookup(SExp *var, SExp *env) {
                 for (frame = car(env); frame != nil; frame = cdr(frame)) {
                         kv = car(frame);
                         if (equals(var, car(kv)))
-                                return cdr(kv);
+                                return kv;
 
                 }
         }
