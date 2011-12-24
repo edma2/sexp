@@ -465,21 +465,23 @@ int main(void) {
         SExp *input, *result;
 
         init();
-        while (!eof) {
+        while (1) {
                 input = parse(stdin, 0);
-                if (input != NULL) {
-                        result = eval(input, global);
-                        if (result != NULL) {
-                                print(result);
-                                printf("\n");
-                        } else {
-                                fprintf(stderr, "Eval error!\n");
-                        }
-                } else {
+                if (input == NULL) {
                         if (eof)
                                 break;
                         fprintf(stderr, "Parse error!\n");
+                        gc();
+                        continue;
                 }
+                result = eval(input, global);
+                if (result == NULL) {
+                        fprintf(stderr, "Eval error!\n");
+                        gc();
+                        continue;
+                }
+                print(result);
+                printf("\n");
                 gc();
         }
         sweep();
