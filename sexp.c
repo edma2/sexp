@@ -76,6 +76,7 @@ SExp *primcar(SExp *args);
 
 char    buf[BUFLEN];    /* string buffer */
 int     eof = 0;        /* end of file flag */
+int     verbose = 1;
 SExp   *pool[POOLSIZE]; /* heap references */
 int     counter = 0;    /* next free node in pool */
 SExp   *global;         /* global environment */
@@ -436,16 +437,20 @@ SExp *mkproc(SExp *params, SExp *body, SExp *env) {
 void sweep(void) {
         int i;
         SExp *exp;
+        int freed = 0;
 
         for (i = 0; i < counter; i++) {
                 exp = pool[i];
                 if (exp->live) {
                         exp->live = 0;
                 } else {
+                        freed++;
                         reclaim(exp);
                         pool[i] = NULL;
                 }
         }
+        if (verbose)
+                fprintf(stderr, "Reclaimed %d nodes\n", freed);
 }
 
 void compact(void) {
@@ -459,6 +464,8 @@ void compact(void) {
         for (i = 0; i < j; i++)
                 pool[i] = alive[i];
         counter = j;
+        if (verbose)
+                fprintf(stderr, "%d living nodes\n", counter);
 }
 
 int main(void) {
