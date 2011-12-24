@@ -5,7 +5,7 @@
 #include <stdarg.h>
 
 #define BUFLEN 1024
-#define POOLSIZE 256
+#define POOLSIZE 4096
 
 #define isreserved(c) (c == ')' || c == '(' || c == '\'')
 
