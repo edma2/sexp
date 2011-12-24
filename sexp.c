@@ -424,8 +424,9 @@ SExp *primcdr(SExp *args) {
 }
 
 SExp *primeq(SExp *args) {
-        SExp *exp = car(args);
-        for (; args != nil; args = cdr(args)) {
+        SExp *exp;
+
+        for (exp = car(args); args != nil; args = cdr(args)) {
                 if (car(args) != exp)
                         return false;
         }
