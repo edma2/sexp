@@ -62,7 +62,6 @@ SExp *evaldefine(SExp *exp, SExp *env);
 SExp *evalset(SExp *exp, SExp *env);
 SExp *evalbegin(SExp *exp, SExp *env);
 SExp *evalapply(SExp *exp, SExp *env);
-int isfalse(SExp *exp);
 int equals(SExp *e1, SExp *e2);
 int atomic(SExp *exp);
 int compound(SExp *exp);
@@ -223,10 +222,6 @@ SExp *eval(SExp *exp, SExp *env) {
         return evalapply(exp, env);
 }
 
-int isfalse(SExp *exp) {
-        return exp == false;
-}
-
 SExp *evallookup(SExp *exp, SExp *env) {
         SExp *kv;
 
@@ -243,7 +238,7 @@ SExp *evalif(SExp *exp, SExp *env) {
                 conditional = eval(cadr(exp), env);
                 truepart = caddr(exp);
                 falsepart = cadddr(exp);
-                if (isfalse(conditional))
+                if (conditional == false)
                         return eval(falsepart, env);
                 return eval(truepart, env);
         }
