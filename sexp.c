@@ -57,6 +57,7 @@ SExp *evallambda(SExp *exp, SExp *env);
 SExp *evaldefine(SExp *exp, SExp *env);
 SExp *evalapply(SExp *exp, SExp *env);
 int isfalse(SExp *exp);
+int equals(SExp *e1, SExp *e2);
 int atomic(SExp *exp);
 int compound(SExp *exp);
 int empty(SExp *exp);
@@ -318,7 +319,7 @@ void init(void) {
         envbind(mkatom("cdr"), mkprim(primcdr), global);
 }
 
-int eq(SExp *e1, SExp *e2) {
+int equals(SExp *e1, SExp *e2) {
         return !strcmp(e1->atom, e2->atom);
 }
 
@@ -328,7 +329,7 @@ SExp *envlookup(SExp *var, SExp *env) {
         for (; env != nil; env = cdr(env)) {
                 for (frame = car(env); frame != nil; frame = cdr(frame)) {
                         kv = car(frame);
-                        if (eq(var, car(kv)))
+                        if (equals(var, car(kv)))
                                 return cdr(kv);
 
                 }
@@ -341,7 +342,7 @@ SExp *envbind(SExp *var, SExp *val, SExp *env) {
 
         for (frame = car(env); frame != nil; frame = cdr(frame)) {
                 kv = car(frame);
-                if (eq(var, car(kv))) {
+                if (equals(var, car(kv))) {
                         cdr(kv) = val;
                         return nil;
                 }
