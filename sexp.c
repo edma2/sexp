@@ -105,6 +105,8 @@ SExp   *pool[POOLSIZE]; /* heap references */
 int     counter = 0;    /* next free node in pool */
 SExp   *global;         /* global environment */
 SExp   *nil;            /* empty list */
+SExp   *true;
+SExp   *false;
 
 void gc(void) {
         mark(global);
@@ -222,7 +224,7 @@ SExp *eval(SExp *exp, SExp *env) {
 }
 
 int isfalse(SExp *exp) {
-        return atomic(exp) && !strcmp(exp->atom, "#f");
+        return exp == false;
 }
 
 SExp *evallookup(SExp *exp, SExp *env) {
@@ -424,9 +426,9 @@ SExp *primeq(SExp *args) {
         SExp *exp = car(args);
         for (; args != nil; args = cdr(args)) {
                 if (car(args) != exp)
-                        return mkatom("#f");
+                        return false;
         }
-        return mkatom("#t");
+        return true;
 }
 
 enum {CMP_LT, CMP_GT, CMP_LTE, CMP_GTE, CMP_EQL};
@@ -452,10 +454,10 @@ SExp *primcmp(SExp *args, int type) {
                         else
                                 result = lhs == rhs;
                         if (!result)
-                                return mkatom("#f");
+                                return false;
                 }
         }
-        return mkatom("#t");
+        return true;
 }
 
 SExp *primlt(SExp *args) {
@@ -506,6 +508,10 @@ SExp *primsetcdr(SExp *args) {
 void init(void) {
         nil = mknil();
         global = cons(nil, nil);
+        true = mkatom("#t");
+        false = mkatom("#f");
+        envbind(mkatom("#t"), true, global);
+        envbind(mkatom("#f"), false, global);
         envbind(mkatom("+"), mkprim(primadd), global);
         envbind(mkatom("-"), mkprim(primsub), global);
         envbind(mkatom("*"), mkprim(primmult), global);
