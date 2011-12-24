@@ -53,6 +53,9 @@ SExp *apply(SExp *op, SExp *operands);
 SExp *eval(SExp *exp, SExp *env);
 SExp *evallist(SExp *ls, SExp *env);
 SExp *evalif(SExp *exp, SExp *env);
+SExp *evallambda(SExp *exp, SExp *env);
+SExp *evaldefine(SExp *exp, SExp *env);
+SExp *evalapply(SExp *exp, SExp *env);
 int isfalse(SExp *exp);
 int atomic(SExp *exp);
 int compound(SExp *exp);
@@ -173,8 +176,6 @@ SExp *evallist(SExp *ls, SExp *env) {
 }
 
 SExp *eval(SExp *exp, SExp *env) {
-        SExp *op, *operands, *params, *body, *var, *val;
-
         if (empty(exp))
                 return nil;
         if (atomic(exp)) {
@@ -186,23 +187,11 @@ SExp *eval(SExp *exp, SExp *env) {
                 return evalif(exp, env);
         if (tagged(exp, "quote"))
                 return cadr(exp);
-        if (tagged(exp, "lambda")) {
-                params = cadr(exp);
-                body = caddr(exp);
-                return mkproc(params, body, env);
-        }
-        if (tagged(exp, "define")) {
-                var = cadr(exp);
-                val = eval(caddr(exp), env);
-                if (val == NULL)
-                        return NULL;
-                return envbind(var, val, env);
-        }
-        op = eval(car(exp), env);
-        operands = evallist(cdr(exp), env);
-        if (op == NULL || operands == NULL)
-                return NULL;
-        return apply(op, operands);
+        if (tagged(exp, "lambda"))
+                return evallambda(exp, env);
+        if (tagged(exp, "define"))
+                return evaldefine(exp, env);
+        return evalapply(exp, env);
 }
 
 int isfalse(SExp *exp) {
@@ -216,6 +205,28 @@ SExp *evalif(SExp *exp, SExp *env) {
         if (isfalse(conditional))
                 return eval(falsepart, env);
         return eval(truepart, env);
+}
+
+SExp *evallambda(SExp *exp, SExp *env) {
+        SExp *params = cadr(exp);
+        SExp *body = caddr(exp);
+        return mkproc(params, body, env);
+}
+
+SExp *evaldefine(SExp *exp, SExp *env) {
+        SExp *var = cadr(exp);
+        SExp *val = eval(caddr(exp), env);
+        if (val == NULL)
+                return NULL;
+        return envbind(var, val, env);
+}
+
+SExp *evalapply(SExp *exp, SExp *env) {
+        SExp *op = eval(car(exp), env);
+        SExp *operands = evallist(cdr(exp), env);
+        if (op == NULL || operands == NULL)
+                return NULL;
+        return apply(op, operands);
 }
 
 SExp *apply(SExp *op, SExp *operands) {
