@@ -28,29 +28,44 @@ struct SExp {
         int live; /* gc flag */
 };
 
+/** Memory management */
 SExp *alloc(void);
-SExp *apply(SExp *op, SExp *operands);
-int atomic(SExp *exp);
-void compact(void);
-int compound(SExp *exp);
-SExp *cons(SExp *car, SExp *cdr);
-int empty(SExp *exp);
-SExp *envbind(SExp *var, SExp *val, SExp *env);
-SExp *envlookup(SExp *var, SExp *env);
-SExp *evallist(SExp *ls, SExp *env);
-SExp *eval(SExp *exp, SExp *env);
-SExp *extend(SExp *args, SExp *params, SExp *env);
 void gc(void);
+void mark(SExp *exp);
+void sweep(void);
+void compact(void);
 void reclaim(SExp *exp);
-void init(void);
-int tagged(SExp *ls, char *tag);
+
+/** Constructors */
+SExp *cons(SExp *car, SExp *cdr);
 SExp *mkatom(char *str);
 SExp *mkpair(SExp *car, SExp *cdr);
 SExp *mkprim(SExp *(*prim)(SExp *));
 SExp *mkproc(SExp *params, SExp *body, SExp *env);
-void mark(SExp *exp);
-int number(SExp *exp);
+
+/** I/O */
+int readtoken(FILE *f);
 SExp *parse(FILE *f, int depth);
+void print(SExp *exp);
+
+/** Evaluation */
+SExp *apply(SExp *op, SExp *operands);
+SExp *eval(SExp *exp, SExp *env);
+SExp *evallist(SExp *ls, SExp *env);
+int atomic(SExp *exp);
+int compound(SExp *exp);
+int empty(SExp *exp);
+int number(SExp *exp);
+int primproc(SExp *exp);
+int tagged(SExp *ls, char *tag);
+
+/** Environment */
+SExp *envbind(SExp *var, SExp *val, SExp *env);
+SExp *envlookup(SExp *var, SExp *env);
+SExp *extend(SExp *args, SExp *params, SExp *env);
+
+/** Primitives */
+void init(void);
 SExp *primadd(SExp *args);
 SExp *primsub(SExp *args);
 SExp *primmult(SExp *args);
@@ -58,10 +73,6 @@ SExp *primdiv(SExp *args);
 SExp *primcons(SExp *args);
 SExp *primcdr(SExp *args);
 SExp *primcar(SExp *args);
-void print(SExp *exp);
-int readtoken(FILE *f);
-int primitive(SExp *exp);
-void sweep(void);
 
 char    buf[BUFLEN];            /* string buffer */
 int     eof = 0;                /* end of file flag */
@@ -192,7 +203,7 @@ SExp *eval(SExp *exp, SExp *env) {
 SExp *apply(SExp *op, SExp *operands) {
         SExp *body, *params, *env;
 
-        if (primitive(op))
+        if (primproc(op))
                 return op->prim(operands);
         params = cadr(op);
         body = caddr(op);
@@ -324,7 +335,7 @@ int empty(SExp *exp) {
         return exp->type == NIL;
 }
 
-int primitive(SExp *exp) {
+int primproc(SExp *exp) {
         return exp->type == PRIM;
 }
 
@@ -359,7 +370,7 @@ void print(SExp *exp) {
                         print(cdr(exp));
                         printf(")");
                 }
-        } else if (primitive(exp)) {
+        } else if (primproc(exp)) {
                 printf("<built-in>");
         }
 }
