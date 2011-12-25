@@ -77,6 +77,7 @@ SExp *eval(SExp *exp, SExp *env);
 SExp *evallist(SExp *ls, SExp *env);
 SExp *evallookup(SExp *exp, SExp *env);
 SExp *evalif(SExp *exp, SExp *env);
+SExp *evalcond(SExp *exp, SExp *env);
 SExp *evallambda(SExp *exp, SExp *env);
 SExp *evaldefine(SExp *exp, SExp *env);
 SExp *evalset(SExp *exp, SExp *env);
@@ -89,6 +90,7 @@ int number(SExp *exp);
 int primproc(SExp *exp);
 int tagged(SExp *ls, char *tag);
 int length(SExp *exp);
+int eqsym(SExp *atom, char *str);
 
 /** Environment */
 SExp *envbind(SExp *var, SExp *val, SExp *env);
@@ -131,6 +133,10 @@ void gc(void) {
         mark(global);
         sweep();
         compact();
+}
+
+int eqsym(SExp *atom, char *str) {
+        return !strcmp(atom->atom, str);
 }
 
 SExp *mkatom(char *s) {
@@ -232,6 +238,8 @@ SExp *eval(SExp *exp, SExp *env) {
         }
         if (tagged(exp, "if"))
                 return evalif(exp, env);
+        if (tagged(exp, "cond"))
+                return evalcond(exp, env);
         if (tagged(exp, "quote"))
                 return cadr(exp);
         if (tagged(exp, "lambda"))
@@ -267,6 +275,30 @@ SExp *evalif(SExp *exp, SExp *env) {
         }
         seterr("malformed if statement");
         return NULL;
+}
+
+/* (cond (c1 a1)
+ *       (c2 a2)
+ *       (c3 a3)
+ *       (else a4)) */
+SExp *evalcond(SExp *exp, SExp *env) {
+        SExp *clause, *predicate, *action;
+
+        for (exp = cdr(exp); exp != nil; exp = cdr(exp)) {
+                clause = car(exp);
+                predicate = car(clause);
+                action = cadr(clause);
+                if (eqsym(predicate, "else")) {
+                        if (cdr(exp) != nil) {
+                                seterr("malformed cond");
+                                return NULL;
+                        }
+                        return eval(action, env);
+                }
+                if (eval(predicate, env) != false)
+                        return eval(action, env);
+        }
+        return mkatom("ok");
 }
 
 SExp *evallambda(SExp *exp, SExp *env) {
@@ -555,7 +587,7 @@ SExp *envlookup(SExp *var, SExp *env) {
         for (; env != nil; env = cdr(env)) {
                 for (frame = car(env); frame != nil; frame = cdr(frame)) {
                         kv = car(frame);
-                        if (!strcmp(var->atom, car(kv)->atom))
+                        if (eqsym(var, car(kv)->atom))
                                 return kv;
 
                 }
@@ -569,7 +601,7 @@ SExp *envbind(SExp *var, SExp *val, SExp *env) {
 
         for (frame = car(env); frame != nil; frame = cdr(frame)) {
                 kv = car(frame);
-                if (!strcmp(var->atom, car(kv)->atom)) {
+                if (eqsym(var, car(kv)->atom)) {
                         cdr(kv) = val;
                         return mkatom("ok");
                 }
@@ -609,7 +641,7 @@ int number(SExp *exp) {
 }
 
 int tagged(SExp *ls, char *tag) {
-        return compound(ls) && atomic(car(ls)) && !strcmp(car(ls)->atom, tag);
+        return compound(ls) && atomic(car(ls)) && eqsym(car(ls), tag);
 }
 
 void print(SExp *exp) {
