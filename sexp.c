@@ -262,19 +262,18 @@ SExp *evallookup(SExp *exp, SExp *env) {
         return cdr(kv);
 }
 
+/* (if c1 a1 a2) */
 SExp *evalif(SExp *exp, SExp *env) {
-        SExp *conditional, *truepart, *falsepart;
+        SExp *predicate, *truepart, *falsepart;
 
         if (length(exp) == 4) {
-                conditional = eval(cadr(exp), env);
-                truepart = caddr(exp);
-                falsepart = cadddr(exp);
-                if (conditional == false)
-                        return eval(falsepart, env);
-                return eval(truepart, env);
+                seterr("malformed if statement");
+                return NULL;
         }
-        seterr("malformed if statement");
-        return NULL;
+        predicate = eval(cadr(exp), env);
+        truepart = caddr(exp);
+        falsepart = cadddr(exp);
+        return eval(predicate == false ? falsepart : truepart, env);
 }
 
 /* (cond (c1 a1)
