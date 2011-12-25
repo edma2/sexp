@@ -35,7 +35,7 @@
 #define caddr(p) (car(cdr(cdr(p))))
 #define cadddr(p) (car(cdr(cdr(cdr(p)))))
 
-enum category {QUOTE, LPAREN, RPAREN, STR, END};
+enum category {QUOTE, LPAREN, RPAREN, SYM, END};
 
 typedef struct SExp SExp;
 struct SExp {
@@ -661,7 +661,7 @@ int readtoken(FILE *f) {
         buf[i+1] = '\0';
         if (isreserved(c))
                 ungetc(c, f);
-        return STR;
+        return SYM;
 }
 
 void seterr(char *msg) {
