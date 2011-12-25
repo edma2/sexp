@@ -300,6 +300,7 @@ SExp *evalcond(SExp *exp, SExp *env) {
         return mkatom("ok");
 }
 
+/* (lambda (params) expr) */
 SExp *evallambda(SExp *exp, SExp *env) {
         SExp *params, *body;
 
@@ -313,6 +314,8 @@ SExp *evallambda(SExp *exp, SExp *env) {
         return NULL;
 }
 
+/* (define symbol value)
+ * OR (define (symbol params) body) */
 SExp *evaldefine(SExp *exp, SExp *env) {
         SExp *var, *val;
 
@@ -333,6 +336,7 @@ SExp *evaldefine(SExp *exp, SExp *env) {
         return NULL;
 }
 
+/* (set! symbol value) */
 SExp *evalset(SExp *exp, SExp *env) {
         SExp *kv, *var, *val;
 
@@ -351,6 +355,7 @@ SExp *evalset(SExp *exp, SExp *env) {
         return NULL;
 }
 
+/* (begin e1 e2 e3 ...) */
 SExp *evalbegin(SExp *exp, SExp *env) {
         SExp *seq, *result;
 
