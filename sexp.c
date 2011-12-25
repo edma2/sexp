@@ -79,6 +79,7 @@ SExp *evallookup(SExp *exp, SExp *env);
 SExp *evalif(SExp *exp, SExp *env);
 SExp *evalcond(SExp *exp, SExp *env);
 SExp *evallambda(SExp *exp, SExp *env);
+SExp *evallet(SExp *exp, SExp *env);
 SExp *evaldefine(SExp *exp, SExp *env);
 SExp *evalset(SExp *exp, SExp *env);
 SExp *evalbegin(SExp *exp, SExp *env);
@@ -244,6 +245,8 @@ SExp *eval(SExp *exp, SExp *env) {
                 return cadr(exp);
         if (tagged(exp, "lambda"))
                 return evallambda(exp, env);
+        if (tagged(exp, "let"))
+                return evallet(exp, env);
         if (tagged(exp, "define"))
                 return evaldefine(exp, env);
         if (tagged(exp, "set!"))
@@ -312,6 +315,32 @@ SExp *evallambda(SExp *exp, SExp *env) {
         }
         seterr("malformed lambda statement");
         return NULL;
+}
+
+/* (let ((var1 val1) (var2 val2)) body) */
+SExp *evallet(SExp *exp, SExp *env) {
+	SExp *bindings, *body, *var, *val;
+	SExp *params = nil, *args = nil;
+	
+	if (length(exp) != 3 || 
+		(!empty(cadr(exp)) && !compound(cadr(exp)))) {
+		seterr("malformed let");
+		return NULL;
+	}
+	body = caddr(exp);
+	for (bindings = cadr(exp); bindings != nil; bindings = cdr(bindings)) {
+		if (length(car(bindings)) != 2) {
+			seterr("malformed let");
+			return NULL;
+		}
+		var = car(car(bindings));
+		params = cons(var, params);
+		val = cadr(car(bindings));
+		args = cons(eval(val, env), args);
+	}
+	if (params == NULL || args == NULL)
+		return NULL;
+	return apply(mkproc(params, body, env), args);
 }
 
 /* (define symbol value)
